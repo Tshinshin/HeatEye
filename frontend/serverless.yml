@@ -1,0 +1,158 @@
+service: serverless-web-app-frontend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  versionFunctions: false
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  # Paramsから受け取った値を使用（循環参照解決）
+  s3BucketName: ${param:s3BucketName}
+  apiGatewayUrl: ${param:apiGatewayUrl}
+  apiGatewayId: ${param:apiGatewayId}
+  # S3 Sync設定
+  s3Sync:
+    - bucketName: ${param:s3BucketName}
+      localDir: ../dist
+      deleteRemoved: true
+  # CloudFront Invalidation設定
+  cloudfrontInvalidate:
+    - distributionIdKey: CloudFrontDistributionId
+      items:
+        - "/*"
+
+resources:
+  Resources:
+    # Origin Access Control for S3
+    CloudFrontOriginAccessControl:
+      Type: AWS::CloudFront::OriginAccessControl
+      Properties:
+        OriginAccessControlConfig:
+          Name: ${self:service}-oac-${self:custom.stage}
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
+
+    # CloudFront Distribution (循環参照解決済み)
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Comment: ${self:service} Distribution ${self:custom.stage}
+          DefaultCacheBehavior:
+            TargetOriginId: s3-origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            Compress: true
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # CORS-S3Origin
+            ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03  # SecurityHeadersPolicy
+          CacheBehaviors:
+            - PathPattern: /api/*
+              TargetOriginId: api-gateway-origin
+              ViewerProtocolPolicy: https-only
+              AllowedMethods:
+                - DELETE
+                - GET
+                - HEAD
+                - OPTIONS
+                - PATCH
+                - POST
+                - PUT
+              CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
+              OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewerExceptHostHeader
+          Origins:
+            - Id: s3-origin
+              DomainName: !Sub "${self:custom.s3BucketName}.s3.${AWS::Region}.amazonaws.com"
+              S3OriginConfig:
+                OriginAccessIdentity: ""
+              OriginAccessControlId: !Ref CloudFrontOriginAccessControl
+            - Id: api-gateway-origin
+              # 修正: シンプルな文字列構築に変更
+              DomainName: !Sub "${self:custom.apiGatewayId}.execute-api.${AWS::Region}.amazonaws.com"
+              OriginPath: !Sub "/${self:custom.stage}"
+              CustomOriginConfig:
+                HTTPPort: 443
+                HTTPSPort: 443
+                OriginProtocolPolicy: https-only
+                OriginSSLProtocols:
+                  - TLSv1.2
+          Enabled: true
+          DefaultRootObject: index.html
+          CustomErrorResponses:
+            - ErrorCode: 403
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+          PriceClass: PriceClass_100
+          HttpVersion: http2
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+          IPV6Enabled: true
+        Tags:
+          - Key: Environment
+            Value: ${self:custom.stage}
+          - Key: Service
+            Value: ${self:service}
+
+    # S3 Bucket Policy (循環参照解決済み)
+    S3BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: ${self:custom.s3BucketName}
+        PolicyDocument:
+          Statement:
+            - Sid: AllowCloudFrontServicePrincipalReadOnly
+              Effect: Allow
+              Principal:
+                Service: cloudfront.amazonaws.com
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${self:custom.s3BucketName}/*"
+              Condition:
+                StringEquals:
+                  "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  Outputs:
+    CloudFrontDistributionId:
+      Value: !Ref CloudFrontDistribution
+      Export:
+        Name: ${self:service}-${self:custom.stage}-CloudFrontDistributionId
+
+    CloudFrontDistributionDomainName:
+      Value: !GetAtt CloudFrontDistribution.DomainName
+      Export:
+        Name: ${self:service}-${self:custom.stage}-CloudFrontDistributionDomainName
+
+    CloudFrontDistributionURL:
+      Value: !Sub "https://${CloudFrontDistribution.DomainName}"
+      Export:
+        Name: ${self:service}-${self:custom.stage}-CloudFrontDistributionURL
+
+plugins:
+  - serverless-s3-sync
+  - serverless-cloudfront-invalidate
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!src/**'
+    - '!public/**'
+    - '!lambda/**'
+    - '!.git/**'
+    - '!docs/**'
+    - '!template/**'
+    - 'dist/**'

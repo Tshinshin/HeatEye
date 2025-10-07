@@ -1,0 +1,29 @@
+# Serverless Framework Compose Configuration
+# 全サービスの依存関係とデプロイ順序を定義
+
+services:
+  # Phase 1: Infrastructure - 基盤リソース
+  infrastructure:
+    path: infrastructure
+
+  # Phase 2: API - Lambda関数とAPI Gateway
+  api:
+    path: api
+    dependsOn:
+      - infrastructure
+    params:
+      masterTableArn: ${infrastructure.MasterTableArn}
+      aiTableArn: ${infrastructure.AITableArn}
+      imagesBucketName: ${infrastructure.ImagesS3BucketName}
+      cognitoUserPoolId: ${infrastructure.CognitoUserPoolId}
+
+  # Phase 3: Frontend - CloudFrontと静的サイト
+  frontend:
+    path: frontend
+    dependsOn:
+      - api
+      - infrastructure
+    params:
+      s3BucketName: ${infrastructure.S3BucketName}
+      apiGatewayUrl: ${api.ApiGatewayUrl}
+      apiGatewayId: ${api.ApiGatewayRestApiId}

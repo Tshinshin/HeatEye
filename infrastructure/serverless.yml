@@ -1,0 +1,30 @@
+service: serverless-web-app-infrastructure
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  versionFunctions: false
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  # DynamoDB変数未定義問題の解決
+  tableName: ${self:service}-${self:custom.stage}
+  masterTableName: ${self:service}-master-${self:custom.stage}
+  aiTableName: ${self:service}-ai-${self:custom.stage}
+  bucketName: ${self:service}-bucket-${self:custom.stage}-${aws:accountId}
+  imagesBucket: ${self:service}-images-${self:custom.stage}-${aws:accountId}
+
+resources:
+  Resources:
+    # Import modular resource files from resources directory
+    ${file(./resources/dynamodb.yml):Resources}
+    ${file(./resources/s3.yml):Resources}
+    ${file(./resources/cognito.yml):Resources}
+
+  Outputs:
+    # Import all outputs from outputs.yml for better organization
+    ${file(./outputs.yml)}

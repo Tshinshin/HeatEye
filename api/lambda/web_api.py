@@ -1,0 +1,1 @@
+# Web API用Lambda関数（実装予定）

@@ -1,0 +1,66 @@
+Resources:
+  # Main website hosting bucket
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.bucketName}
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - "*"
+            AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - HEAD
+            MaxAge: 3000
+
+  # Images storage bucket
+  ImagesS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.imagesBucket}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - "*"
+            AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - HEAD
+              - PUT
+              - POST
+              - DELETE
+            MaxAge: 3000
+
+  # Bucket policy moved to frontend service to avoid circular dependency
+
+Outputs:
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Export:
+      Name: ${self:service}-${self:custom.stage}-S3BucketName
+
+  ImagesS3BucketName:
+    Value: !Ref ImagesS3Bucket
+    Export:
+      Name: ${self:service}-${self:custom.stage}-ImagesS3BucketName
+
+  WebsiteURL:
+    Value: !GetAtt S3Bucket.WebsiteURL
+    Export:
+      Name: ${self:service}-${self:custom.stage}-WebsiteURL

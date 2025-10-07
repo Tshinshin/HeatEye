@@ -1,0 +1,150 @@
+service: serverless-web-app-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  versionFunctions: false
+  environment:
+    # Infrastructure serviceからparamsで受け取った値を使用
+    MASTER_TABLE_ARN: ${param:masterTableArn}
+    AI_TABLE_ARN: ${param:aiTableArn}
+    IMAGES_BUCKET: ${param:imagesBucketName}
+    COGNITO_USER_POOL_ID: ${param:cognitoUserPoolId}
+    COGNITO_REGION: ${self:provider.region}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+
+functions:
+  # 認識値取得用Lambda
+  recognitionProcessor:
+    handler: lambda/recognition_processor.lambda_handler
+    timeout: 300
+    memorySize: 2048
+    tracing: Active
+    iamRoleStatements:
+      # DynamoDB権限
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+        Resource:
+          - ${param:masterTableArn}
+          - "${param:masterTableArn}/index/*"
+          - ${param:aiTableArn}
+          - "${param:aiTableArn}/index/*"
+      # S3権限
+      - Effect: Allow
+        Action:
+          - s3:GetObject
+          - s3:PutObject
+        Resource: "arn:aws:s3:::${param:imagesBucketName}/*"
+      # X-Ray権限
+      - Effect: Allow
+        Action:
+          - xray:PutTraceSegments
+          - xray:PutTelemetryRecords
+        Resource: "*"
+
+  # 画面表示用Lambda（Web API）
+  webApi:
+    handler: lambda/web_api.lambda_handler
+    timeout: 30
+    memorySize: 1024
+    tracing: Active
+    iamRoleStatements:
+      # DynamoDB権限（読み取り中心）
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:GetItem
+          - dynamodb:BatchGetItem
+        Resource:
+          - ${param:masterTableArn}
+          - "${param:masterTableArn}/index/*"
+          - ${param:aiTableArn}
+          - "${param:aiTableArn}/index/*"
+      # S3権限（読み取りのみ）
+      - Effect: Allow
+        Action:
+          - s3:GetObject
+        Resource: "arn:aws:s3:::${param:imagesBucketName}/*"
+      # X-Ray権限
+      - Effect: Allow
+        Action:
+          - xray:PutTraceSegments
+          - xray:PutTelemetryRecords
+        Resource: "*"
+    events:
+      # API Gateway統合
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /
+          method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+
+resources:
+  Resources:
+    # CloudWatch Logs for API Gateway
+    ApiAccessLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: !Sub /aws/apigateway/${self:service}-${self:custom.stage}
+        RetentionInDays: 30
+
+  Outputs:
+    # API Gateway情報をExport（Frontend serviceで使用）
+    ApiGatewayRestApiId:
+      Value: !Ref ApiGatewayRestApi
+      Export:
+        Name: ${self:service}-${self:custom.stage}-ApiGatewayRestApiId
+
+    ApiGatewayUrl:
+      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:custom.stage}"
+      Export:
+        Name: ${self:service}-${self:custom.stage}-ApiGatewayUrl
+
+# プラグインは必要に応じて後で追加
+# plugins:
+#   - serverless-python-requirements
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!src/**'
+    - '!public/**'
+    - '!dist/**'
+    - '!.git/**'
+    - '!docs/**'
+    - '!template/**'
+    - 'lambda/**'

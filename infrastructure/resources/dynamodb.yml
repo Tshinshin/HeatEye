@@ -1,0 +1,102 @@
+Resources:
+  # Master Table - カメラマスタ（MACアドレス→カメラID変換）
+  MasterTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.tableName}-master
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: mac_address
+          AttributeType: S
+        - AttributeName: plant_name
+          AttributeType: S
+        - AttributeName: equipment
+          AttributeType: S
+        - AttributeName: startup_time
+          AttributeType: S
+        - AttributeName: capture_date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: mac_address
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        # プラント名称 + 日付検索用GSI
+        - IndexName: PlantDateIndex
+          KeySchema:
+            - AttributeName: plant_name
+              KeyType: HASH
+            - AttributeName: capture_date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # 機器 + 日付検索用GSI
+        - IndexName: EquipmentDateIndex
+          KeySchema:
+            - AttributeName: equipment
+              KeyType: HASH
+            - AttributeName: capture_date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: ${self:custom.stage}
+        - Key: Service
+          Value: ${self:service}
+
+  # AI Table - AI処理設定管理
+  AITable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.tableName}-ai
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: camera_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: camera_id
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: ${self:custom.stage}
+        - Key: Service
+          Value: ${self:service}
+
+Outputs:
+  MasterTableName:
+    Value: !Ref MasterTable
+    Export:
+      Name: ${self:service}-${self:custom.stage}-MasterTableName
+
+  MasterTableArn:
+    Value: !GetAtt MasterTable.Arn
+    Export:
+      Name: ${self:service}-${self:custom.stage}-MasterTableArn
+
+  MasterTableStreamArn:
+    Value: !GetAtt MasterTable.StreamArn
+    Export:
+      Name: ${self:service}-${self:custom.stage}-MasterTableStreamArn
+
+  AITableName:
+    Value: !Ref AITable
+    Export:
+      Name: ${self:service}-${self:custom.stage}-AITableName
+
+  AITableArn:
+    Value: !GetAtt AITable.Arn
+    Export:
+      Name: ${self:service}-${self:custom.stage}-AITableArn
+
+  AITableStreamArn:
+    Value: !GetAtt AITable.StreamArn
+    Export:
+      Name: ${self:service}-${self:custom.stage}-AITableStreamArn

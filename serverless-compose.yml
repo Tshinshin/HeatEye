@@ -14,7 +14,7 @@ services:
     params:
       masterTableArn: ${infrastructure.MasterTableArn}
       aiTableArn: ${infrastructure.AITableArn}
-      imagesBucketName: ${infrastructure.ImagesS3BucketName}
+      imagesBucketName: heateye
       cognitoUserPoolId: ${infrastructure.CognitoUserPoolId}
 
   # Phase 3: Frontend - CloudFrontと静的サイト
@@ -27,3 +27,8 @@ services:
       s3BucketName: ${infrastructure.S3BucketName}
       apiGatewayUrl: ${api.ApiGatewayUrl}
       apiGatewayId: ${api.ApiGatewayRestApiId}
+
+  recognition:
+    path: recognition
+    params:
+      imagesBucketName: ${env:IMAGES_BUCKET_NAME}  # ← 画像を入れているS3バケット名（環境変数でOK）

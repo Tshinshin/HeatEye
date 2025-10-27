@@ -46,7 +46,7 @@ functions:
         Action:
           - s3:GetObject
           - s3:PutObject
-        Resource: "arn:aws:s3:::${param:imagesBucketName}/*"
+        Resource: "arn:aws:s3:::heateye/*"
       # X-Ray権限
       - Effect: Allow
         Action:
@@ -148,3 +148,39 @@ package:
     - '!docs/**'
     - '!template/**'
     - 'lambda/**'
+# --- add: device config API & DynamoDB table ---
+provider:
+  environment:
+    CONFIG_TABLE: ${param:configTableName}   # 追加（composeから渡す）
+
+functions:
+  getDeviceConfig:
+    handler: lambda/config_api.handler
+    events:
+      - httpApi:
+          path: /getDeviceConfig
+          method: POST
+    iamRoleStatements:
+      - Effect: Allow
+        Action: [ dynamodb:GetItem ]
+        Resource:
+          - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:configTableName}
+
+resources:
+  Resources:
+    CompanyCameraConfig:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${param:configTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: company
+            AttributeType: S
+          - AttributeName: sort_key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: company
+            KeyType: HASH
+          - AttributeName: sort_key
+            KeyType: RANGE
+# --- end add ---

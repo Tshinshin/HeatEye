@@ -1,0 +1,71 @@
+service: heateye-recognition
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ap-northeast-1
+  environment:
+    RESULTS_TABLE: ${env:RESULTS_TABLE, 'HeatEyeRecognition'}
+    GEMINI_API_KEY: ${env:GEMINI_API_KEY}
+    MODEL_NAME: ${env:MODEL_NAME, 'gemini-1.5-flash'}
+    S3_RESULT_SUFFIX: '.result.json'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:ListBucket
+          Resource:
+            - arn:aws:s3:::${param:imagesBucketName}
+            - arn:aws:s3:::${param:imagesBucketName}/*
+        - Effect: Allow
+          Action: [ dynamodb:PutItem ]
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${env:RESULTS_TABLE}
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    layer: true
+    slim: true
+
+functions:
+  recognizeImage:
+    handler: handler.recognize_image
+    timeout: 60
+    memorySize: 1024
+    events:
+      - s3:
+          bucket: ${param:imagesBucketName}
+          event: s3:ObjectCreated:Put
+          rules:
+            - suffix: .jpg
+      - s3:
+          bucket: ${param:imagesBucketName}
+          event: s3:ObjectCreated:Put
+          rules:
+            - suffix: .jpeg
+
+resources:
+  Resources:
+    HeatEyeRecognition:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:RESULTS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: company
+            AttributeType: S
+          - AttributeName: sort_key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: company
+            KeyType: HASH
+          - AttributeName: sort_key
+            KeyType: RANGE

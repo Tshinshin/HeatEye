@@ -1,6 +1,6 @@
 service: serverless-web-app-frontend
 
-frameworkVersion: '3'
+frameworkVersion: '4'
 
 provider:
   name: aws

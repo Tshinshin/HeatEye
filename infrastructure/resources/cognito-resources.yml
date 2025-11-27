@@ -48,8 +48,7 @@ Resources:
       UserPoolId: !Ref CognitoUserPool
       GenerateSecret: false
       ExplicitAuthFlows:
-        - ADMIN_NO_SRP_AUTH
-        - USER_PASSWORD_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_USER_SRP_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
       SupportedIdentityProviders:
@@ -115,7 +114,7 @@ Resources:
                 Action:
                   - s3:GetObject
                 Resource:
-                  - !Sub "${ImagesS3Bucket}/*"
+                  - !Sub "arn:aws:s3:::${ImagesS3Bucket}/*"
               - Effect: Allow
                 Action:
                   - dynamodb:GetItem
@@ -133,24 +132,3 @@ Resources:
       IdentityPoolId: !Ref CognitoIdentityPool
       Roles:
         authenticated: !GetAtt CognitoAuthRole.Arn
-
-Outputs:
-  CognitoUserPoolId:
-    Value: !Ref CognitoUserPool
-    Export:
-      Name: ${self:service}-${self:custom.stage}-CognitoUserPoolId
-
-  CognitoUserPoolClientId:
-    Value: !Ref CognitoUserPoolClient
-    Export:
-      Name: ${self:service}-${self:custom.stage}-CognitoUserPoolClientId
-
-  CognitoIdentityPoolId:
-    Value: !Ref CognitoIdentityPool
-    Export:
-      Name: ${self:service}-${self:custom.stage}-CognitoIdentityPoolId
-
-  CognitoUserPoolArn:
-    Value: !GetAtt CognitoUserPool.Arn
-    Export:
-      Name: ${self:service}-${self:custom.stage}-CognitoUserPoolArn

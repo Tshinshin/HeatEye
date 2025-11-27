@@ -1,34 +1,33 @@
-# DynamoDB Outputs
-MasterTableArn:
-  Value: !GetAtt MasterTable.Arn
-  Export:
-    Name: ${self:service}-${self:custom.stage}-MasterTableArn
+Outputs:
+  # DynamoDB Outputs
+  MasterTableArn:
+    Value: !GetAtt MasterTable.Arn
+    Export:
+      Name: ${self:service}-${self:custom.stage}-MasterTableArn
 
-AITableArn:
-  Value: !GetAtt AITable.Arn
-  Export:
-    Name: ${self:service}-${self:custom.stage}-AITableArn
+  AITableArn:
+    Value: !GetAtt AITable.Arn
+    Export:
+      Name: ${self:service}-${self:custom.stage}-AITableArn
 
-# S3 Outputs
-S3BucketName:
-  Value: !Ref S3Bucket
-  Export:
-    Name: ${self:service}-${self:custom.stage}-S3BucketName
+  # S3 Outputs
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Export:
+      Name: ${self:service}-${self:custom.stage}-S3BucketName
 
-ImagesS3BucketName:
-  Value: !Ref ImagesS3Bucket
-  Export:
-    Name: ${self:service}-${self:custom.stage}-ImagesS3BucketName
+  ImagesS3BucketName:
+    Value: !Ref ImagesS3Bucket
+    Export:
+      Name: ${self:service}-${self:custom.stage}-ImagesS3BucketName
 
-# Cognito Outputs
-CognitoUserPoolId:
-  Value: !Ref CognitoUserPool
-  Export:
-    Name: ${self:service}-${self:custom.stage}-CognitoUserPoolId
+  # Cognito Outputs
+  CognitoUserPoolId:
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: ${self:service}-${self:custom.stage}-CognitoUserPoolId
 
-CognitoUserPoolClientId:
-  Value: !Ref CognitoUserPoolClient
-  Export:
-    Name: ${self:service}-${self:custom.stage}-CognitoUserPoolClientId
-
-# IAM roles managed by individual services via iamRoleStatements
+  CognitoUserPoolClientId:
+    Value: !Ref CognitoUserPoolClient
+    Export:
+      Name: ${self:service}-${self:custom.stage}-CognitoUserPoolClientId

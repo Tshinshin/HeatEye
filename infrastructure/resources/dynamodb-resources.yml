@@ -12,8 +12,6 @@ Resources:
           AttributeType: S
         - AttributeName: equipment
           AttributeType: S
-        - AttributeName: startup_time
-          AttributeType: S
         - AttributeName: capture_date
           AttributeType: S
       KeySchema:
@@ -69,34 +67,3 @@ Resources:
           Value: ${self:custom.stage}
         - Key: Service
           Value: ${self:service}
-
-Outputs:
-  MasterTableName:
-    Value: !Ref MasterTable
-    Export:
-      Name: ${self:service}-${self:custom.stage}-MasterTableName
-
-  MasterTableArn:
-    Value: !GetAtt MasterTable.Arn
-    Export:
-      Name: ${self:service}-${self:custom.stage}-MasterTableArn
-
-  MasterTableStreamArn:
-    Value: !GetAtt MasterTable.StreamArn
-    Export:
-      Name: ${self:service}-${self:custom.stage}-MasterTableStreamArn
-
-  AITableName:
-    Value: !Ref AITable
-    Export:
-      Name: ${self:service}-${self:custom.stage}-AITableName
-
-  AITableArn:
-    Value: !GetAtt AITable.Arn
-    Export:
-      Name: ${self:service}-${self:custom.stage}-AITableArn
-
-  AITableStreamArn:
-    Value: !GetAtt AITable.StreamArn
-    Export:
-      Name: ${self:service}-${self:custom.stage}-AITableStreamArn

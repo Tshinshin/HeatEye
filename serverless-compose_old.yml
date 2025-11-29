@@ -1,0 +1,26 @@
+compose:
+  services:
+
+    infrastructure:
+      path: infrastructure
+
+    api:
+      path: api
+      dependsOn:
+        - infrastructure
+      params:
+        masterTableArn: ${infrastructure.MasterTableArn}
+        aiTableArn: ${infrastructure.AITableArn}
+        imagesBucketName: ${infrastructure.ImagesS3BucketName}
+        cognitoUserPoolId: ${infrastructure.CognitoUserPoolId}
+
+    frontend:
+      path: frontend
+      dependsOn:
+        - api
+      params:
+        s3BucketName: ${infrastructure.S3BucketName}
+        apiGatewayUrl: ${api.ApiGatewayUrl}
+        apiGatewayId: ${api.ApiGatewayRestApiId}
+      inputs:
+        alwaysDeploy: true

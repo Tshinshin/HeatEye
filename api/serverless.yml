@@ -1,12 +1,11 @@
-service: serverless-web-app-api
-
-frameworkVersion: '4'
+service: api
 
 provider:
   name: aws
   runtime: python3.12
   region: ap-northeast-1
   stage: ${opt:stage, 'dev'}
+  stackName: api-dev
   versionFunctions: false
   environment:
     # Infrastructure serviceからparamsで受け取った値を使用

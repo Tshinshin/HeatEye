@@ -1,134 +1,74 @@
-Resources:
-  # Cognito User Pool
-  CognitoUserPool:
-    Type: AWS::Cognito::UserPool
-    Properties:
-      UserPoolName: ${self:service}-user-pool-${self:custom.stage}
-      AutoVerifiedAttributes:
-        - email
-      UsernameAttributes:
-        - email
-      UsernameConfiguration:
-        CaseSensitive: false
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 8
-          RequireUppercase: true
-          RequireLowercase: true
-          RequireNumbers: true
-          RequireSymbols: false
-          TemporaryPasswordValidityDays: 7
-      MfaConfiguration: "OFF"
-      AccountRecoverySetting:
-        RecoveryMechanisms:
-          - Name: verified_email
-            Priority: 1
-      UserPoolTags:
-        Environment: ${self:custom.stage}
-        Service: ${self:service}
-      Schema:
-        - Name: email
-          AttributeDataType: String
-          Required: true
-          Mutable: true
-        - Name: given_name
-          AttributeDataType: String
-          Required: false
-          Mutable: true
-        - Name: family_name
-          AttributeDataType: String
-          Required: false
-          Mutable: true
+# Cognito User Pool
+CognitoUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties:
+    UserPoolName: ${self:service}-user-pool-${self:custom.stage}
+    AutoVerifiedAttributes:
+      - email
+    UsernameAttributes:
+      - email
+    UsernameConfiguration:
+      CaseSensitive: false
+    Policies:
+      PasswordPolicy:
+        MinimumLength: 8
+        RequireUppercase: true
+        RequireLowercase: true
+        RequireNumbers: true
+        RequireSymbols: false
+        TemporaryPasswordValidityDays: 7
+    MfaConfiguration: "OFF"
+    AccountRecoverySetting:
+      RecoveryMechanisms:
+        - Name: verified_email
+          Priority: 1
+    UserPoolTags:
+      Environment: ${self:custom.stage}
+      Service: ${self:service}
+    Schema:
+      - Name: email
+        AttributeDataType: String
+        Required: true
+        Mutable: true
+      - Name: given_name
+        AttributeDataType: String
+        Required: false
+        Mutable: true
+      - Name: family_name
+        AttributeDataType: String
+        Required: false
+        Mutable: true
 
-  # Cognito User Pool Client
-  CognitoUserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
-    Properties:
-      ClientName: ${self:service}-client-${self:custom.stage}
-      UserPoolId: !Ref CognitoUserPool
-      GenerateSecret: false
-      ExplicitAuthFlows:
-        - ALLOW_USER_PASSWORD_AUTH
-        - ALLOW_USER_SRP_AUTH
-        - ALLOW_REFRESH_TOKEN_AUTH
-      SupportedIdentityProviders:
-        - COGNITO
-      CallbackURLs:
-        - http://localhost:5001
-        - https://${self:custom.bucketName}.s3-website-${self:provider.region}.amazonaws.com
-        # CloudFront URL will be added after deployment via parameter
-      LogoutURLs:
-        - http://localhost:5001
-        - https://${self:custom.bucketName}.s3-website-${self:provider.region}.amazonaws.com
-        # CloudFront URL will be added after deployment via parameter
-      AllowedOAuthFlows:
-        - code
-        - implicit
-      AllowedOAuthScopes:
-        - phone
-        - email
-        - openid
-        - profile
-      AllowedOAuthFlowsUserPoolClient: true
-      RefreshTokenValidity: 30
-      AccessTokenValidity: 1
-      IdTokenValidity: 1
-      TokenValidityUnits:
-        AccessToken: hours
-        IdToken: hours
-        RefreshToken: days
-
-  # Cognito Identity Pool
-  CognitoIdentityPool:
-    Type: AWS::Cognito::IdentityPool
-    Properties:
-      IdentityPoolName: ${self:service}_identity_pool_${self:custom.stage}
-      AllowUnauthenticatedIdentities: false
-      CognitoIdentityProviders:
-        - ClientId: !Ref CognitoUserPoolClient
-          ProviderName: !GetAtt CognitoUserPool.ProviderName
-
-  # IAM Role for authenticated users
-  CognitoAuthRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ${self:service}-auth-role-${self:custom.stage}
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Federated: cognito-identity.amazonaws.com
-            Action: sts:AssumeRoleWithWebIdentity
-            Condition:
-              StringEquals:
-                'cognito-identity.amazonaws.com:aud': !Ref CognitoIdentityPool
-              'ForAnyValue:StringLike':
-                'cognito-identity.amazonaws.com:amr': authenticated
-      Policies:
-        - PolicyName: CognitoAuthPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource:
-                  - !Sub "arn:aws:s3:::${ImagesS3Bucket}/*"
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt MasterTable.Arn
-                  - !Sub "${MasterTable.Arn}/index/*"
-                  - !GetAtt AITable.Arn
-                  - !Sub "${AITable.Arn}/index/*"
-
-  # Identity Pool Role Attachment
-  IdentityPoolRoleMapping:
-    Type: AWS::Cognito::IdentityPoolRoleAttachment
-    Properties:
-      IdentityPoolId: !Ref CognitoIdentityPool
-      Roles:
-        authenticated: !GetAtt CognitoAuthRole.Arn
+# Cognito User Pool Client
+CognitoUserPoolClient:
+  Type: AWS::Cognito::UserPoolClient
+  Properties:
+    ClientName: ${self:service}-client-${self:custom.stage}
+    UserPoolId: !Ref CognitoUserPool
+    GenerateSecret: false
+    ExplicitAuthFlows:
+      - ALLOW_USER_PASSWORD_AUTH
+      - ALLOW_USER_SRP_AUTH
+      - ALLOW_REFRESH_TOKEN_AUTH
+    SupportedIdentityProviders:
+      - COGNITO
+    CallbackURLs:
+      - http://localhost:5001
+      - https://${self:custom.bucketName}.s3-website-${self:provider.region}.amazonaws.com
+    LogoutURLs:
+      - http://localhost:5001
+      - https://${self:custom.bucketName}.s3-website-${self:provider.region}.amazonaws.com
+    AllowedOAuthFlows:
+      - code
+      - implicit
+    AllowedOAuthScopes:
+      - phone
+      - email
+      - openid
+      - profile
+    AllowedOAuthFlowsUserPoolClient: true
+    RefreshTokenValidity: 30
+    AccessTokenValidity: 1
+    IdTokenValidity: 1
+    TokenValidityUnits:
+      AccessTo

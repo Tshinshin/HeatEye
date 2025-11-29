@@ -1,12 +1,10 @@
-service: serverless-web-app-frontend
-
-frameworkVersion: '4'
+service: frontend
 
 provider:
   name: aws
-  runtime: python3.12
   region: ap-northeast-1
   stage: ${opt:stage, 'dev'}
+  stackName: frontend-dev
   versionFunctions: false
 
 custom:
@@ -18,7 +16,7 @@ custom:
   # S3 Sync設定
   s3Sync:
     - bucketName: ${param:s3BucketName}
-      localDir: ../dist
+      localDir: out
       deleteRemoved: true
   # CloudFront Invalidation設定
   cloudfrontInvalidate:
@@ -145,14 +143,3 @@ resources:
 plugins:
   - serverless-s3-sync
   - serverless-cloudfront-invalidate
-
-package:
-  patterns:
-    - '!node_modules/**'
-    - '!src/**'
-    - '!public/**'
-    - '!lambda/**'
-    - '!.git/**'
-    - '!docs/**'
-    - '!template/**'
-    - 'dist/**'

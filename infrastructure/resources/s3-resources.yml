@@ -1,50 +1,47 @@
-Resources:
-  # Main website hosting bucket
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: ${self:custom.bucketName}
-      WebsiteConfiguration:
-        IndexDocument: index.html
-        ErrorDocument: index.html
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
-      CorsConfiguration:
-        CorsRules:
-          - AllowedOrigins:
-              - "*"
-            AllowedHeaders:
-              - "*"
-            AllowedMethods:
-              - GET
-              - HEAD
-            MaxAge: 3000
+# Main website hosting bucket
+S3Bucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    BucketName: ${self:custom.bucketName}
+    WebsiteConfiguration:
+      IndexDocument: index.html
+      ErrorDocument: index.html
+    PublicAccessBlockConfiguration:
+      BlockPublicAcls: false
+      BlockPublicPolicy: false
+      IgnorePublicAcls: false
+      RestrictPublicBuckets: false
+    CorsConfiguration:
+      CorsRules:
+        - AllowedOrigins:
+            - "*"
+          AllowedHeaders:
+            - "*"
+          AllowedMethods:
+            - GET
+            - HEAD
+          MaxAge: 3000
 
-  # Images storage bucket
-  ImagesS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: ${self:custom.imagesBucket}
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      CorsConfiguration:
-        CorsRules:
-          - AllowedOrigins:
-              - "*"
-            AllowedHeaders:
-              - "*"
-            AllowedMethods:
-              - GET
-              - HEAD
-              - PUT
-              - POST
-              - DELETE
-            MaxAge: 3000
-
-  # Bucket policy moved to frontend service to avoid circular dependency
+# Images storage bucket
+ImagesS3Bucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    BucketName: ${self:custom.imagesBucket}
+    PublicAccessBlockConfiguration:
+      BlockPublicAcls: true
+      BlockPublicPolicy: true
+      IgnorePublicAcls: true
+      RestrictPublicBuckets: true
+    CorsConfiguration:
+      CorsRules:
+        - AllowedOrigins:
+            - "*"
+          AllowedHeaders:
+            - "*"
+          AllowedMethods:
+            - GET
+            - HEAD
+            - PUT
+            - POST
+            - DELETE
+          MaxAge: 3000

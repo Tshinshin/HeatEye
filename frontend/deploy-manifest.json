@@ -25,6 +25,6 @@
   ],
   "framework": {
     "name": "nextjs",
-    "version": "15"
+    "version": "15.0.0"
   }
 }

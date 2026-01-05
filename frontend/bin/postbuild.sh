@@ -59,3 +59,6 @@ find .amplify-hosting/compute/default -maxdepth 2 -type f \
 
 echo "[postbuild] Done. Listing .amplify-hosting:"
 find .amplify-hosting -maxdepth 3 -type f | sed 's|^\./||'
+
+echo "[postbuild] Listing .amplify-hosting (top-level):"
+ls -la .amplify-hosting || true

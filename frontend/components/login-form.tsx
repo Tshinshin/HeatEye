@@ -1,8 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CognitoIdentityProviderClient, InitiateAuthCommand } from "@aws-sdk/client-cognito-identity-provider"
+import {
+  CognitoIdentityProviderClient,
+  InitiateAuthCommand,
+} from "@aws-sdk/client-cognito-identity-provider"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +23,7 @@ import { useForm } from "react-hook-form"
 export function LoginForm() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [idToken, setIdToken] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
@@ -27,6 +31,17 @@ export function LoginForm() {
       password: "",
     },
   })
+
+  // 👇 副作用（cookie書き込み・画面遷移）は effect に寄せる
+  useEffect(() => {
+    if (!idToken) return
+
+    document.cookie = `idToken=${encodeURIComponent(
+      idToken
+    )}; path=/; max-age=3600; samesite=lax`
+
+    router.push("/dashboard")
+  }, [idToken, router])
 
   async function onSubmit(values: { email: string; password: string }) {
     setError(null)
@@ -46,15 +61,15 @@ export function LoginForm() {
       })
 
       const result = await client.send(command)
-      const idToken = result.AuthenticationResult?.IdToken
+      const token = result.AuthenticationResult?.IdToken
 
-      if (!idToken) {
+      if (!token) {
         setError("ログインに失敗しました")
         return
       }
 
-      document.cookie = `idToken=${idToken}; path=/; max-age=3600`
-      router.push("/dashboard")
+      // 👇 state を更新 → effect が反応
+      setIdToken(token)
     } catch (err) {
       console.error(err)
       setError("メールまたはパスワードが違います")

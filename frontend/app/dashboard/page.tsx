@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Device, Reading } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,22 +14,17 @@ import {
 import Link from "next/link"
 
 export default function DashboardPage() {
-  const [devices, setDevices] = useState<Device[]>([])
-  const [readings, setReadings] = useState<Reading[]>([])
-
   // 👇 今はモックデータ（後でAPIと接続可能）
-  useEffect(() => {
-    setDevices([
-      { id: "pump01", name: "1号ポンプ", location: "ポンプ室 A" },
-      { id: "pump02", name: "2号ポンプ", location: "ポンプ室 B" },
-    ])
+  const [devices] = useState<Device[]>([
+    { id: "pump01", name: "1号ポンプ", location: "ポンプ室 A" },
+    { id: "pump02", name: "2号ポンプ", location: "ポンプ室 B" },
+  ])
 
-    setReadings([
-      { timestamp: "2025-01-01 12:00:00", value: 5.4, deviceId: "pump01" },
-      { timestamp: "2025-01-01 12:00:00", value: 8.1, deviceId: "pump02" },
-      { timestamp: "2025-01-01 13:00:00", value: 5.5, deviceId: "pump01" },
-    ])
-  }, [])
+  const [readings] = useState<Reading[]>([
+    { timestamp: "2025-01-01 12:00:00", value: 5.4, deviceId: "pump01" },
+    { timestamp: "2025-01-01 12:00:00", value: 8.1, deviceId: "pump02" },
+    { timestamp: "2025-01-01 13:00:00", value: 5.5, deviceId: "pump01" },
+  ])
 
   return (
     <div className="p-6 space-y-8">

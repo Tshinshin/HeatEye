@@ -1,19 +1,25 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
-
-// 認証が必要なパス
-const protectedRoutes = ["/dashboard"]
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const idToken = req.cookies.get("idToken")?.value
+  const { pathname } = req.nextUrl;
 
-  // ログインしていない場合 → /login へ
-  if (protectedRoutes.some((p) => req.nextUrl.pathname.startsWith(p))) {
-    if (!idToken) {
-      const loginUrl = new URL("/login", req.url)
-      return NextResponse.redirect(loginUrl)
-    }
+  // login は常に通す
+  if (pathname.startsWith("/login")) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next()
+  const idToken = req.cookies.get("idToken")?.value;
+
+  if (!idToken) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
+
+export const config = {
+  matcher: ["/((?!_next|favicon.ico).*)"],
+};

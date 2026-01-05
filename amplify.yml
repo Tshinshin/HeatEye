@@ -5,29 +5,31 @@ applications:
       phases:
         preBuild:
           commands:
-            - pwd
-            - ls -la
-            - npm ci
+            - "pwd"
+            - "ls -la"
+            - "npm ci"
         build:
           commands:
-            - npm run build
+            - "npm run build"
         postBuild:
           commands:
-            - echo "===== DEBUG: find .amplify-hosting / deploy-manifest.json ====="
-            - pwd
-            - ls -la
-            - find .. -maxdepth 4 -type d -name ".amplify-hosting" -print
-            - find .. -maxdepth 6 -type f -name "deploy-manifest.json" -print
-            - echo "===== DEBUG: list possible output dirs ====="
-            - ls -la .
-            - ls -la .. || true
-            - ls -la .next || true
-            - ls -la .amplify-hosting || true
+            - "echo '===== DEBUG START ====='"
+            - "echo 'PWD:' && pwd"
+            - "echo 'LS:' && ls -la"
+            - "echo 'FIND .amplify-hosting dirs:'"
+            - "find .. -maxdepth 4 -type d -name .amplify-hosting -print || true"
+            - "echo 'FIND deploy-manifest.json:'"
+            - "find .. -maxdepth 6 -type f -name deploy-manifest.json -print || true"
+            - "echo 'LIST frontend/.amplify-hosting:'"
+            - "ls -la .amplify-hosting || true"
+            - "echo 'LIST frontend/.next:'"
+            - "ls -la .next || true"
+            - "echo '===== DEBUG END ====='"
       artifacts:
-        baseDirectory: .amplify-hosting
+        baseDirectory: ".amplify-hosting"
         files:
           - "**/*"
       cache:
         paths:
-          - node_modules/**/*
-          - .next/cache/**/*
+          - "node_modules/**/*"
+          - ".next/cache/**/*"

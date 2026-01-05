@@ -5,18 +5,14 @@ applications:
       phases:
         preBuild:
           commands:
-            - "npm ci"
+            - npm ci
         build:
           commands:
-            - "npm run build"
-        postBuild:
-          commands:
-            - "chmod +x bin/postbuild.sh && ./bin/postbuild.sh"
+            - npm run build
       artifacts:
-        baseDirectory: ".amplify-hosting"
+        baseDirectory: .next
         files:
           - "**/*"
       cache:
         paths:
-          - "node_modules/**/*"
-          - ".next/cache/**/*"
+          - node_modules/**/*

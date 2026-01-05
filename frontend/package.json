@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "chmod +x bin/postbuild.sh && ./bin/postbuild.sh",
     "start": "next start",
     "lint": "eslint"
   },

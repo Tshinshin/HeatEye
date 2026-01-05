@@ -45,3 +45,9 @@ fi
 
 echo "[postbuild] Done. Listing .amplify-hosting:"
 find .amplify-hosting -maxdepth 3 -type f | sed 's|^\./||'
+
+echo "[postbuild] Listing compute/default (top-level):"
+ls -la .amplify-hosting/compute/default || true
+
+echo "[postbuild] Searching entry candidates:"
+find .amplify-hosting/compute/default -maxdepth 2 -type f \( -name "server.js" -o -name "index.js" -o -name "app.js" -o -name "main.js" \) -print || true

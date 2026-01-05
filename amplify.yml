@@ -5,10 +5,24 @@ applications:
       phases:
         preBuild:
           commands:
+            - pwd
+            - ls -la
             - npm ci
         build:
           commands:
             - npm run build
+        postBuild:
+          commands:
+            - echo "===== DEBUG: find .amplify-hosting / deploy-manifest.json ====="
+            - pwd
+            - ls -la
+            - find .. -maxdepth 4 -type d -name ".amplify-hosting" -print
+            - find .. -maxdepth 6 -type f -name "deploy-manifest.json" -print
+            - echo "===== DEBUG: list possible output dirs ====="
+            - ls -la .
+            - ls -la .. || true
+            - ls -la .next || true
+            - ls -la .amplify-hosting || true
       artifacts:
         baseDirectory: .amplify-hosting
         files:

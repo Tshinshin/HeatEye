@@ -275,7 +275,7 @@ export function LoginForm() {
       </Form>
 
       <p className="text-center text-sm text-muted-foreground">
-        まだアカウントがありませんか？（サインアップ画面も作れます）
+        まだアカウントがありませんか？（xxxx@i-rela.comに問い合わせてください）
       </p>
     </div>
   );

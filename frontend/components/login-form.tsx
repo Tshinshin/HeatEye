@@ -76,6 +76,11 @@ export function LoginForm() {
       });
 
       const result = await client.send(command);
+      console.log("Cognito result keys:", {
+        ChallengeName: result.ChallengeName,
+        Session: !!result.Session,
+        HasAuthResult: !!result.AuthenticationResult,
+      });
       const token = result.AuthenticationResult?.IdToken;
 
       if (!token) {
@@ -158,7 +163,7 @@ export function LoginForm() {
       </Form>
 
       <p className="text-center text-sm text-muted-foreground">
-        まだアカウントがありませんか？（サインアップ画面も作れます）
+        アカウントをお持ちでない場合は、xxx@i-rela.comにお問い合わせください。
       </p>
     </div>
   );

@@ -24,16 +24,16 @@ export default function ReadingPage() {
     { timestamp: "2025-01-01 13:00:00", value: 5.5, deviceId: "pump01" },
   ])
 
-  const filteredReadings = readings.filter(
-    (r) => r.deviceId === deviceId
-  )
+  const filteredReadings = readings.filter((r) => r.deviceId === deviceId)
+
+  // S3上の画像（公開されている前提）
+  const imageUrl =
+    "https://infra-images-dev-944510364679.s3.ap-northeast-1.amazonaws.com/sample.jpg"
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">
-          読み値一覧（{deviceId}）
-        </h1>
+        <h1 className="text-2xl font-bold">読み値一覧（{deviceId}）</h1>
 
         <Link href="/dashboard">
           <Button variant="outline">戻る</Button>
@@ -45,6 +45,7 @@ export default function ReadingPage() {
           <TableRow>
             <TableHead>日時</TableHead>
             <TableHead>値</TableHead>
+            <TableHead className="text-center">画像</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -53,6 +54,18 @@ export default function ReadingPage() {
             <TableRow key={idx}>
               <TableCell>{r.timestamp}</TableCell>
               <TableCell>{r.value}</TableCell>
+
+              <TableCell className="text-center">
+                {/* サムネクリックでオリジナルを別タブ表示 */}
+                <a href={imageUrl} target="_blank" rel="noreferrer">
+                  <img
+                    src={imageUrl}
+                    alt="sample"
+                    className="inline-block h-12 w-12 rounded object-cover border"
+                    loading="lazy"
+                  />
+                </a>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

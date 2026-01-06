@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
-} from "@aws-sdk/client-cognito-identity-provider"
+} from "@aws-sdk/client-cognito-identity-provider";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -16,85 +16,94 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
+} from "@/components/ui/form";
 
-import { useForm } from "react-hook-form"
+import { useForm } from "react-hook-form";
+
+type LoginValues = {
+  email: string;
+  password: string;
+};
 
 export function LoginForm() {
-  const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const [idToken, setIdToken] = useState<string | null>(null)
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
 
-  const form = useForm({
+  const form = useForm<LoginValues>({
     defaultValues: {
       email: "",
       password: "",
     },
-  })
+  });
 
-  // 👇 副作用（cookie書き込み・画面遷移）は effect に寄せる
+  // 副作用（cookie書き込み・画面遷移）は effect に寄せる
   useEffect(() => {
-    if (!idToken) return
+    if (!idToken) return;
 
     document.cookie = `idToken=${encodeURIComponent(
       idToken
-    )}; path=/; max-age=3600; samesite=lax`
+    )}; path=/; max-age=3600; samesite=lax`;
 
-    router.push("/dashboard")
-  }, [idToken, router])
+    // 戻るでログイン画面に戻りにくいように replace 推奨
+    router.replace("/dashboard");
+    router.refresh();
+  }, [idToken, router]);
 
-async function onSubmit(values: { email: string; password: string }) {
-  setError(null);
+  async function onSubmit(values: LoginValues) {
+    setError(null);
 
-  const region = process.env.NEXT_PUBLIC_COGNITO_REGION;
-  const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
+    const region = process.env.NEXT_PUBLIC_COGNITO_REGION;
+    const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
 
-  if (!region || !clientId) {
-    setError("設定不足: Cognito の環境変数が未設定です（NEXT_PUBLIC_COGNITO_REGION / NEXT_PUBLIC_COGNITO_CLIENT_ID）");
-    return;
-  }
-
-  const client = new CognitoIdentityProviderClient({ region });
-
-  try {
-    const command = new InitiateAuthCommand({
-      AuthFlow: "USER_PASSWORD_AUTH",
-      ClientId: clientId,
-      AuthParameters: {
-        USERNAME: values.email,
-        PASSWORD: values.password,
-      },
-    });
-
-    const result = await client.send(command);
-    const token = result.AuthenticationResult?.IdToken;
-
-    if (!token) {
-      setError("ログインに失敗しました（IdToken が取得できません）");
+    if (!region || !clientId) {
+      setError(
+        "設定不足: Cognito の環境変数が未設定です（NEXT_PUBLIC_COGNITO_REGION / NEXT_PUBLIC_COGNITO_CLIENT_ID）"
+      );
       return;
     }
 
-    setIdToken(token);
-  } catch (err: unknown) {
-    console.error(err);
+    const client = new CognitoIdentityProviderClient({ region });
 
-    let name = "Error";
-    let message = "ログインに失敗しました";
+    try {
+      const command = new InitiateAuthCommand({
+        AuthFlow: "USER_PASSWORD_AUTH",
+        ClientId: clientId,
+        AuthParameters: {
+          USERNAME: values.email,
+          PASSWORD: values.password,
+        },
+      });
 
-    if (err instanceof Error) {
-      name = err.name;
-      message = err.message;
-    } else if (typeof err === "object" && err !== null) {
-      const e = err as Record<string, unknown>;
-      if (typeof e.name === "string") name = e.name;
-      if (typeof e.message === "string") message = e.message;
-    } else if (typeof err === "string") {
-      message = err;
+      const result = await client.send(command);
+      const token = result.AuthenticationResult?.IdToken;
+
+      if (!token) {
+        setError("ログインに失敗しました（IdToken が取得できません）");
+        return;
+      }
+
+      setIdToken(token);
+    } catch (err: unknown) {
+      console.error(err);
+
+      let name = "Error";
+      let message = "ログインに失敗しました";
+
+      if (err instanceof Error) {
+        name = err.name;
+        message = err.message;
+      } else if (typeof err === "object" && err !== null) {
+        const e = err as Record<string, unknown>;
+        if (typeof e.name === "string") name = e.name;
+        if (typeof e.message === "string") message = e.message;
+      } else if (typeof err === "string") {
+        message = err;
+      }
+
+      setError(`${name}: ${message}`);
     }
-
-    setError(`${name}: ${message}`);
   }
-}
 
   return (
     <div className="w-full max-w-sm space-y-6">
@@ -109,7 +118,12 @@ async function onSubmit(values: { email: string; password: string }) {
               <FormItem>
                 <FormLabel>メールアドレス</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="user@example.com" {...field} />
+                  <Input
+                    type="email"
+                    placeholder="user@example.com"
+                    autoComplete="email"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -123,7 +137,12 @@ async function onSubmit(values: { email: string; password: string }) {
               <FormItem>
                 <FormLabel>パスワード</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -142,5 +161,5 @@ async function onSubmit(values: { email: string; password: string }) {
         まだアカウントがありませんか？（サインアップ画面も作れます）
       </p>
     </div>
-  )
+  );
 }

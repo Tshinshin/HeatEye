@@ -43,38 +43,44 @@ export function LoginForm() {
     router.push("/dashboard")
   }, [idToken, router])
 
-  async function onSubmit(values: { email: string; password: string }) {
-    setError(null)
+async function onSubmit(values: { email: string; password: string }) {
+  setError(null);
 
-    const client = new CognitoIdentityProviderClient({
-      region: process.env.NEXT_PUBLIC_COGNITO_REGION,
-    })
+  const region = process.env.NEXT_PUBLIC_COGNITO_REGION;
+  const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
 
-    try {
-      const command = new InitiateAuthCommand({
-        AuthFlow: "USER_PASSWORD_AUTH",
-        ClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!,
-        AuthParameters: {
-          USERNAME: values.email,
-          PASSWORD: values.password,
-        },
-      })
-
-      const result = await client.send(command)
-      const token = result.AuthenticationResult?.IdToken
-
-      if (!token) {
-        setError("ログインに失敗しました")
-        return
-      }
-
-      // 👇 state を更新 → effect が反応
-      setIdToken(token)
-    } catch (err) {
-      console.error(err)
-      setError("メールまたはパスワードが違います")
-    }
+  if (!region || !clientId) {
+    setError("設定不足: Cognito の環境変数が未設定です（NEXT_PUBLIC_COGNITO_REGION / NEXT_PUBLIC_COGNITO_CLIENT_ID）");
+    return;
   }
+
+  const client = new CognitoIdentityProviderClient({ region });
+
+  try {
+    const command = new InitiateAuthCommand({
+      AuthFlow: "USER_PASSWORD_AUTH",
+      ClientId: clientId,
+      AuthParameters: {
+        USERNAME: values.email,
+        PASSWORD: values.password,
+      },
+    });
+
+    const result = await client.send(command);
+    const token = result.AuthenticationResult?.IdToken;
+
+    if (!token) {
+      setError("ログインに失敗しました（IdToken が取得できません）");
+      return;
+    }
+
+    setIdToken(token);
+  } catch (err: any) {
+    console.error(err);
+    // 例外の中身を表示（原因特定用）
+    setError(`${err?.name ?? "Error"}: ${err?.message ?? "ログインに失敗しました"}`);
+  }
+}
 
   return (
     <div className="w-full max-w-sm space-y-6">

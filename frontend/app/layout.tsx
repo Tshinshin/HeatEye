@@ -1,7 +1,8 @@
 import "./globals.css";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import LogoutButton from "@/components/logout-button";
+//import LogoutButton from "@/components/logout-button";
+import LogoutButton from "../components/logout-button";
 
 export default async function RootLayout({
   children,

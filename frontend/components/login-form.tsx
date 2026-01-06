@@ -75,10 +75,24 @@ async function onSubmit(values: { email: string; password: string }) {
     }
 
     setIdToken(token);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    // 例外の中身を表示（原因特定用）
-    setError(`${err?.name ?? "Error"}: ${err?.message ?? "ログインに失敗しました"}`);
+
+    let name = "Error";
+    let message = "ログインに失敗しました";
+
+    if (err instanceof Error) {
+      name = err.name;
+      message = err.message;
+    } else if (typeof err === "object" && err !== null) {
+      const e = err as Record<string, unknown>;
+      if (typeof e.name === "string") name = e.name;
+      if (typeof e.message === "string") message = e.message;
+    } else if (typeof err === "string") {
+      message = err;
+    }
+
+    setError(`${name}: ${message}`);
   }
 }
 

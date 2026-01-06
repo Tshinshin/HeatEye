@@ -1,6 +1,7 @@
 export type Device = {
   id: string
   name: string
+  latestval: number
   location: string
 }
 

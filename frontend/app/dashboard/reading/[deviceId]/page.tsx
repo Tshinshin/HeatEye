@@ -19,9 +19,16 @@ export default function ReadingPage() {
   const deviceId = params.deviceId
 
   const [readings] = useState<Reading[]>([
-    { timestamp: "2025-01-01 12:00:00", value: 5.4, deviceId: "pump01" },
-    { timestamp: "2025-01-01 12:00:00", value: 8.1, deviceId: "pump02" },
-    { timestamp: "2025-01-01 13:00:00", value: 5.5, deviceId: "pump01" },
+    { timestamp: "2025-01-01 12:00:00", value: 5.4, deviceId: "TI001" },
+    { timestamp: "2025-01-01 13:00:00", value: 5.5, deviceId: "TI001" },
+    { timestamp: "2025-01-01 14:00:00", value: 5.6, deviceId: "TI001" },
+    { timestamp: "2025-01-01 15:00:00", value: 5.7, deviceId: "TI001" },
+    { timestamp: "2025-01-01 16:00:00", value: 5.8, deviceId: "TI001" },
+    { timestamp: "2025-01-01 12:00:00", value: 8.1, deviceId: "TI002" },
+    { timestamp: "2025-01-01 13:00:00", value: 5.5, deviceId: "TI002" },
+    { timestamp: "2025-01-01 14:00:00", value: 5.6, deviceId: "TI002" },
+    { timestamp: "2025-01-01 15:00:00", value: 5.7, deviceId: "TI002" },
+    { timestamp: "2025-01-01 16:00:00", value: 5.8, deviceId: "TI002" },
   ])
 
   const filteredReadings = readings.filter((r) => r.deviceId === deviceId)

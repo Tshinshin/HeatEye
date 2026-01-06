@@ -53,7 +53,7 @@ export default function DashboardPage() {
                 <TableCell>
                   <Link href={`/dashboard/reading/${d.id}`}>
                     <Button variant="outline" size="sm">
-                      読み値を見る
+                      読み値履歴
                     </Button>
                   </Link>
                 </TableCell>

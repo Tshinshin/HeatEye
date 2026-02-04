@@ -1,68 +1,3 @@
-MasterTable:
-  Type: AWS::DynamoDB::Table
-  Properties:
-    TableName: ${self:custom.tableName}-master
-    BillingMode: PAY_PER_REQUEST
-    AttributeDefinitions:
-      - AttributeName: mac_address
-        AttributeType: S
-      - AttributeName: plant_name
-        AttributeType: S
-      - AttributeName: equipment
-        AttributeType: S
-      - AttributeName: capture_date
-        AttributeType: S
-    KeySchema:
-      - AttributeName: mac_address
-        KeyType: HASH
-    GlobalSecondaryIndexes:
-      - IndexName: PlantDateIndex
-        KeySchema:
-          - AttributeName: plant_name
-            KeyType: HASH
-          - AttributeName: capture_date
-            KeyType: RANGE
-        Projection:
-          ProjectionType: ALL
-      - IndexName: EquipmentDateIndex
-        KeySchema:
-          - AttributeName: equipment
-            KeyType: HASH
-          - AttributeName: capture_date
-            KeyType: RANGE
-        Projection:
-          ProjectionType: ALL
-    StreamSpecification:
-      StreamViewType: NEW_AND_OLD_IMAGES
-    PointInTimeRecoverySpecification:
-      PointInTimeRecoveryEnabled: true
-    Tags:
-      - Key: Environment
-        Value: ${self:custom.stage}
-      - Key: Service
-        Value: ${self:service}
-
-AITable:
-  Type: AWS::DynamoDB::Table
-  Properties:
-    TableName: ${self:custom.tableName}-ai
-    BillingMode: PAY_PER_REQUEST
-    AttributeDefinitions:
-      - AttributeName: camera_id
-        AttributeType: S
-    KeySchema:
-      - AttributeName: camera_id
-        KeyType: HASH
-    StreamSpecification:
-      StreamViewType: NEW_AND_OLD_IMAGES
-    PointInTimeRecoverySpecification:
-      PointInTimeRecoveryEnabled: true
-    Tags:
-      - Key: Environment
-        Value: ${self:custom.stage}
-      - Key: Service
-        Value: ${self:service}
-
 S3Bucket:
   Type: AWS::S3::Bucket
   Properties:
@@ -235,3 +170,176 @@ IdentityPoolRoleMapping:
     IdentityPoolId: !Ref CognitoIdentityPool
     Roles:
       authenticated: !GetAtt CognitoAuthRole.Arn
+
+# Master Table - カメラマスタ（MACアドレス→カメラID変換）
+MasterTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-master
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: mac_address
+        AttributeType: S
+      - AttributeName: plant_name
+        AttributeType: S
+      - AttributeName: equipment
+        AttributeType: S
+      - AttributeName: capture_date
+        AttributeType: S
+    KeySchema:
+      - AttributeName: mac_address
+        KeyType: HASH
+    GlobalSecondaryIndexes:
+      # プラント名称 + 日付検索用GSI
+      - IndexName: PlantDateIndex
+        KeySchema:
+          - AttributeName: plant_name
+            KeyType: HASH
+          - AttributeName: capture_date
+            KeyType: RANGE
+        Projection:
+          ProjectionType: ALL
+      # 機器 + 日付検索用GSI
+      - IndexName: EquipmentDateIndex
+        KeySchema:
+          - AttributeName: equipment
+            KeyType: HASH
+          - AttributeName: capture_date
+            KeyType: RANGE
+        Projection:
+          ProjectionType: ALL
+    StreamSpecification:
+      StreamViewType: NEW_AND_OLD_IMAGES
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}
+
+# AI Table - AI処理設定管理
+AITable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-ai
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: camera_id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: camera_id
+        KeyType: HASH
+    StreamSpecification:
+      StreamViewType: NEW_AND_OLD_IMAGES
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}
+
+# UserPlantAccess Table - ユーザーがアクセス可能なプラント
+# PK=user_id（Cognito sub推奨）, SK=plant_id
+UserPlantAccessTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-user-plant
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: user_id
+        AttributeType: S
+      - AttributeName: plant_id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: user_id
+        KeyType: HASH
+      - AttributeName: plant_id
+        KeyType: RANGE
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}
+
+# Plants Table - プラントマスタ
+# PK=plant_id
+PlantsTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-plants
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: plant_id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: plant_id
+        KeyType: HASH
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}
+
+# Devices Table - 計器マスタ
+# PK=plant_id, SK=device_id
+# Attributes:
+#   - device_name (S)
+#   - location (S)
+#   - latest_value (N)
+#   - latest_ts (S)
+DevicesTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-devices
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: plant_id
+        AttributeType: S
+      - AttributeName: device_id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: plant_id
+        KeyType: HASH
+      - AttributeName: device_id
+        KeyType: RANGE
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}
+
+# Readings Table - 読み値（計器単位の時系列）
+# PK=device_id, SK=timestamp（ISO 8601 文字列推奨）
+# Attributes:
+#   - value (N)
+#   - image_url (S)
+ReadingsTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-readings
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: device_id
+        AttributeType: S
+      - AttributeName: timestamp
+        AttributeType: S
+    KeySchema:
+      - AttributeName: device_id
+        KeyType: HASH
+      - AttributeName: timestamp
+        KeyType: RANGE
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}

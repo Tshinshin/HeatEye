@@ -16,5 +16,7 @@ custom:
   imagesBucket: ${self:service}-images-${self:custom.stage}-${aws:accountId}
 
 resources:
-  Resources: ${file(./resources/all-resources.yml)}
+  Resources:
+    ${file(./resources/all-resources.yml)}
+    ${file(./resources/dynamodb-resources.yml)}
   Outputs: ${file(./outputs.yml):Outputs}

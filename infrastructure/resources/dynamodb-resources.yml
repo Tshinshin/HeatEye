@@ -67,3 +67,79 @@ Resources:
           Value: ${self:custom.stage}
         - Key: Service
           Value: ${self:service}
+
+  # UserPlantAccess Table - ユーザーがアクセス可能なプラント（user_id -> plant_id一覧）
+  # PK=user_id（Cognito sub推奨）, SK=plant_id
+  UserPlantAccessTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.tableName}-user-plant
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: plant_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: plant_id
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: ${self:custom.stage}
+        - Key: Service
+          Value: ${self:service}
+
+  # Plants Table - プラントマスタ
+  # PK=plant_id
+  # Attributes: plant_name
+  PlantsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.tableName}-plants
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: plant_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: plant_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: ${self:custom.stage}
+        - Key: Service
+          Value: ${self:service}
+
+  # Devices Table - 計器マスタ（プラント単位で一覧取得）
+  # PK=plant_id, SK=device_id
+  # Attributes:
+  #   - device_name (S)
+  #   - location (S)
+  #   - latest_value (N)   # 最新値（数値）
+  #   - latest_ts (S)      # 最新時刻（ISO 8601推奨）
+  DevicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.tableName}-devices
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: plant_id
+          AttributeType: S
+        - AttributeName: device_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: plant_id
+          KeyType: HASH
+        - AttributeName: device_id
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: ${self:custom.stage}
+        - Key: Service

@@ -47,7 +47,7 @@ export function LoginForm() {
     const next = searchParams.get("next");
     // 安全のため相対パスだけ許可（オープンリダイレクト対策）
     if (next && next.startsWith("/")) return next;
-    return "/dashboard";
+    return "/";
   }, [searchParams]);
 
   const [error, setError] = useState<string | null>(null);

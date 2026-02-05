@@ -1,8 +1,8 @@
-// components/logout-button.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { signOut } from "aws-amplify/auth";
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -10,9 +10,13 @@ export default function LogoutButton() {
   return (
     <Button
       variant="outline"
-      onClick={() => {
-        document.cookie = "idToken=; path=/; max-age=0";
-        router.replace("/login");
+      onClick={async () => {
+        try {
+          await signOut();
+        } finally {
+          router.replace("/login");
+          router.refresh();
+        }
       }}
     >
       ログアウト

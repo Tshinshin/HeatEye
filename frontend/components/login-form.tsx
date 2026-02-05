@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  CognitoIdentityProviderClient,
-  InitiateAuthCommand,
-  RespondToAuthChallengeCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
+import { signIn, confirmSignIn, fetchAuthSession } from "aws-amplify/auth";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,11 +48,8 @@ export function LoginForm() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // NEW_PASSWORD_REQUIRED 用
+  // NEW_PASSWORD_REQUIRED 用（Amplify では nextStep.signInStep で判定）
   const [challenge, setChallenge] = useState<"NEW_PASSWORD_REQUIRED" | null>(null);
-  const [session, setSession] = useState<string | null>(null);
-
-  const [idToken, setIdToken] = useState<string | null>(null);
 
   const form = useForm<LoginValues>({
     defaultValues: {
@@ -66,113 +59,62 @@ export function LoginForm() {
     },
   });
 
-  // ログイン成功 → cookie セット → 遷移
-  useEffect(() => {
-    if (!idToken) return;
-
-    document.cookie = `idToken=${encodeURIComponent(
-      idToken
-    )}; path=/; max-age=3600; samesite=lax`;
-
-    router.replace(nextPath);
-    router.refresh();
-  }, [idToken, nextPath, router]);
-
-  function getClient(): CognitoIdentityProviderClient | null {
-    const region = process.env.NEXT_PUBLIC_COGNITO_REGION;
-    if (!region) {
-      setError("設定不足: NEXT_PUBLIC_COGNITO_REGION が未設定です");
-      return null;
-    }
-    return new CognitoIdentityProviderClient({ region });
-  }
-
-  function getClientId(): string | null {
-    const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
-    if (!clientId) {
-      setError("設定不足: NEXT_PUBLIC_COGNITO_CLIENT_ID が未設定です");
-      return null;
-    }
-    return clientId;
-  }
-
   async function onSubmit(values: LoginValues) {
     setError(null);
 
-    const client = getClient();
-    const clientId = getClientId();
-    if (!client || !clientId) return;
-
     try {
-      // 1) まず通常ログイン
+      // 1) 通常ログイン（まだ challenge が無い場合）
       if (!challenge) {
-        const command = new InitiateAuthCommand({
-          AuthFlow: "USER_PASSWORD_AUTH",
-          ClientId: clientId,
-          AuthParameters: {
-            USERNAME: values.email,
-            PASSWORD: values.password,
-          },
+        const res = await signIn({
+          username: values.email,
+          password: values.password,
         });
 
-        const result = await client.send(command);
-
-        // NEW_PASSWORD_REQUIRED の場合：token は返らない。session を保持して次の入力へ。
-        if (result.ChallengeName === "NEW_PASSWORD_REQUIRED" && result.Session) {
+        // 初回ログイン等で「新パスワード必須」になった場合
+        if (res.nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
           setChallenge("NEW_PASSWORD_REQUIRED");
-          setSession(result.Session);
           setError("初回ログインのため、新しいパスワードの設定が必要です。");
           return;
         }
 
-        const token = result.AuthenticationResult?.IdToken;
-        if (!token) {
-          setError("ログインに失敗しました（IdToken が取得できません）");
+        // 他のチャレンジ（MFA等）が来た場合は、まずエラーで気づけるようにする
+        if (res.nextStep?.signInStep && res.nextStep.signInStep !== "DONE") {
+          setError(`追加のサインイン手順が必要です: ${res.nextStep.signInStep}`);
           return;
         }
 
-        setIdToken(token);
+        // DONE ならセッションを確定させて遷移
+        await fetchAuthSession({ forceRefresh: true });
+        router.replace(nextPath);
+        router.refresh();
         return;
       }
 
       // 2) NEW_PASSWORD_REQUIRED の応答（新パスワード設定）
       if (challenge === "NEW_PASSWORD_REQUIRED") {
-        if (!session) {
-          setError("セッション情報がありません。最初からやり直してください。");
-          setChallenge(null);
-          return;
-        }
-
         if (!values.newPassword) {
           setError("新しいパスワードを入力してください。");
           return;
         }
 
-        const cmd = new RespondToAuthChallengeCommand({
-          ClientId: clientId,
-          ChallengeName: "NEW_PASSWORD_REQUIRED",
-          Session: session,
-          ChallengeResponses: {
-            USERNAME: values.email,
-            NEW_PASSWORD: values.newPassword,
-          },
+        const res = await confirmSignIn({
+          challengeResponse: values.newPassword,
         });
 
-        const result = await client.send(cmd);
-        const token = result.AuthenticationResult?.IdToken;
-
-        if (!token) {
-          setError("パスワード更新に失敗しました（IdToken が取得できません）");
+        // もしまだ別のステップが残っていたら表示
+        if (res.nextStep?.signInStep && res.nextStep.signInStep !== "DONE") {
+          setError(`追加のサインイン手順が必要です: ${res.nextStep.signInStep}`);
           return;
         }
 
-        // 成功したら challenge 状態をクリアして遷移へ
+        // 成功したら challenge 状態をクリアして遷移
         setChallenge(null);
-        setSession(null);
         form.setValue("password", "");
         form.setValue("newPassword", "");
 
-        setIdToken(token);
+        await fetchAuthSession({ forceRefresh: true });
+        router.replace(nextPath);
+        router.refresh();
       }
     } catch (err: unknown) {
       console.error(err);
@@ -263,7 +205,6 @@ export function LoginForm() {
               className="w-full"
               onClick={() => {
                 setChallenge(null);
-                setSession(null);
                 setError(null);
                 form.setValue("newPassword", "");
               }}

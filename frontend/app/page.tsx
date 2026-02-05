@@ -40,6 +40,7 @@ export default function Home() {
         const data = (await res.json()) as { plants: Plant[] };
         setPlants(data.plants ?? []);
         } catch (e: unknown) {
+          console.error("Home auth error:", e);
           const msg =
             e instanceof Error ? e.message : typeof e === "string" ? e : JSON.stringify(e);
           setError(msg);

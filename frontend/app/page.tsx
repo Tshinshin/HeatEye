@@ -14,6 +14,7 @@ export default function Home() {
 
   useEffect(() => {
     (async () => {
+      console.log("Home useEffect started");
       try {
         
         const user = await getCurrentUser();

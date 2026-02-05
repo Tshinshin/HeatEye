@@ -8,9 +8,9 @@ export const runtime = "nodejs";
 
 const USER_PLANT_TABLE = process.env.DDB_USER_PLANT_TABLE!;
 const PLANTS_TABLE = process.env.DDB_PLANTS_TABLE!;
-const REGION = process.env.AWS_REGION!;
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
-const CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
+const REGION = process.env.NEXT_PUBLIC_COGNITO_REGION!;
+const USER_POOL_ID = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
+const CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
 
 if (!USER_PLANT_TABLE || !PLANTS_TABLE) throw new Error("DynamoDB table envs are not set");
 
@@ -84,11 +84,15 @@ export async function GET(req: Request) {
       .filter((p) => p.plant_name);
 
     return NextResponse.json({ plants: ordered }, { status: 200 });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json(
-      { message: "Failed to load plants", detail: e?.message ?? String(e) },
-      { status: 500 }
-    );
-  }
+	} catch (e: unknown) {
+  		console.error(e);
+
+  		const detail =
+    		e instanceof Error ? e.message : typeof e === "string" ? e : JSON.stringify(e);
+
+  		return NextResponse.json(
+    		{ message: "Failed to load plants", detail },
+    		{ status: 500 }
+  		);
+	}
 }

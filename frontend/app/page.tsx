@@ -31,9 +31,11 @@ export default function Home() {
 
         const data = (await res.json()) as { plants: Plant[] };
         setPlants(data.plants ?? []);
-      } catch (e: any) {
-        setError(e?.message ?? String(e));
-      }
+        } catch (e: unknown) {
+          const msg =
+            e instanceof Error ? e.message : typeof e === "string" ? e : JSON.stringify(e);
+          setError(msg);
+        }
     })();
   }, []);
 

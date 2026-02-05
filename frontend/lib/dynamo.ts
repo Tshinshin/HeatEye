@@ -2,7 +2,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-const region = process.env.AWS_REGION;
+const region = process.env.REGION;
 
 if (!region) throw new Error("AWS_REGION is not set");
 

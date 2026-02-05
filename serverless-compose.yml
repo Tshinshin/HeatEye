@@ -13,13 +13,3 @@ services:
       imagesBucketName: ${infra.ImagesS3BucketName}
       cognitoUserPoolId: ${infra.CognitoUserPoolId}
 
-  frontend:
-    path: frontend
-    dependsOn:
-      - api
-    params:
-      s3BucketName: ${infra.S3BucketName}
-      apiGatewayUrl: ${api.ApiGatewayUrl}
-      apiGatewayId: ${api.ApiGatewayRestApiId}
-    inputs:
-      alwaysDeploy: true

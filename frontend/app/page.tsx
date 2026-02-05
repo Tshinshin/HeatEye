@@ -33,15 +33,24 @@ export default function Home() {
         });
 
         if (!res.ok) {
-          const text = await res.text(); // まず生で取得
-          let body: any = null;
+          const text = await res.text();
+
+          let message = `HTTP ${res.status}`;
+          let detail = "";
+
+          // JSONっぽければ解析して message/detail を拾う（any不使用）
           try {
-            body = JSON.parse(text);
+            const parsed: unknown = JSON.parse(text);
+            if (parsed && typeof parsed === "object") {
+              const obj = parsed as Record<string, unknown>;
+              if (typeof obj.message === "string") message = obj.message;
+              if (typeof obj.detail === "string") detail = obj.detail;
+            }
           } catch {
-            // JSONじゃない場合はそのまま
+            // JSONじゃなければそのまま（textは使わない）
           }
-          const detail = body?.detail ? ` / ${body.detail}` : "";
-          throw new Error((body?.message ?? `HTTP ${res.status}`) + detail);  
+
+          throw new Error(detail ? `${message} / ${detail}` : message);
         }
 
         const data = (await res.json()) as { plants: Plant[] };

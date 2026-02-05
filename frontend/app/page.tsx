@@ -33,8 +33,15 @@ export default function Home() {
         });
 
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body?.message ?? `HTTP ${res.status}`);
+          const text = await res.text(); // まず生で取得
+          let body: any = null;
+          try {
+            body = JSON.parse(text);
+          } catch {
+            // JSONじゃない場合はそのまま
+          }
+          const detail = body?.detail ? ` / ${body.detail}` : "";
+          throw new Error((body?.message ?? `HTTP ${res.status}`) + detail);  
         }
 
         const data = (await res.json()) as { plants: Plant[] };

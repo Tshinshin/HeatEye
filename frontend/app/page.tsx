@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { fetchAuthSession } from "aws-amplify/auth";
 
+import { getCurrentUser } from "aws-amplify/auth";
+
 type Plant = { plant_id: string; plant_name: string };
 
 export default function Home() {
@@ -15,6 +17,10 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
+        
+        const user = await getCurrentUser();
+        console.log("currentUser", user);
+
         const session = await fetchAuthSession();
         const idToken = session.tokens?.idToken?.toString();
         if (!idToken) throw new Error("No idToken. Are you logged in?");

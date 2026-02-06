@@ -1,8 +1,14 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // ✅ API は必ず通す（ここが今回の本丸）
+  if (pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
 
   // ✅ 認証不要ページ（ログインページ）は必ず通す
   if (pathname === "/login" || pathname.startsWith("/login/")) {
@@ -34,5 +40,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|favicon.ico).*)"],
+  // ✅ matcher 側でも /api を除外（2重に守る）
+  matcher: ["/((?!api|_next|favicon.ico).*)"],
 };

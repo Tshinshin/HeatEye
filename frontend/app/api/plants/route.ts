@@ -1,15 +1,13 @@
 // app/api/plants/route.ts
 import { NextResponse } from "next/server";
-import { QueryCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
-import { ddbDoc } from "@/lib/dynamo";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { QueryCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
 
 export const runtime = "nodejs";
 
 type UserPlantItem = { plant_id: string };
 type PlantItem = { plant_id: string; plant_name: string };
 
-// verifier も “遅延生成”にしておく（env未設定でビルド落ちを防ぐ）
 let verifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
 
 function getVerifier() {
@@ -34,15 +32,28 @@ function getVerifier() {
 
 export async function GET(req: Request) {
   try {
-    // ✅ Amplifyで実行時に見えないことがあるので、NEXT_PUBLIC_* も保険で見る
+    // ✅ ここで dynamo を遅延 import（import時の例外も catch できる）
+    let ddbDoc: any;
+    try {
+      const mod = await import("@/lib/dynamo");
+      ddbDoc = mod.ddbDoc;
+      if (!ddbDoc) throw new Error("ddbDoc is undefined (export not found)");
+    } catch (e: unknown) {
+      const detail =
+        e instanceof Error ? (e.stack ?? e.message) : typeof e === "string" ? e : JSON.stringify(e);
+      return NextResponse.json(
+        { message: "Failed to import @/lib/dynamo", detail },
+        { status: 500 }
+      );
+    }
+
+    // ✅ env（DDB_* と NEXT_PUBLIC_DDB_* の両方を見る）
     const USER_PLANT_TABLE =
       process.env.DDB_USER_PLANT_TABLE ?? process.env.NEXT_PUBLIC_DDB_USER_PLANT_TABLE;
-
     const PLANTS_TABLE =
       process.env.DDB_PLANTS_TABLE ?? process.env.NEXT_PUBLIC_DDB_PLANTS_TABLE;
 
     if (!USER_PLANT_TABLE || !PLANTS_TABLE) {
-      // env が無い場合、どれが見えているかを detail で返す
       return NextResponse.json(
         {
           message: "DynamoDB table envs are not set",
@@ -59,6 +70,7 @@ export async function GET(req: Request) {
       );
     }
 
+    // ✅ Authorization 必須
     const auth = req.headers.get("authorization") || "";
     const m = auth.match(/^Bearer\s+(.+)$/i);
     if (!m) {
@@ -71,7 +83,7 @@ export async function GET(req: Request) {
     const payload = await getVerifier().verify(token);
     const userId = payload.sub;
 
-    // 2) infra-dev-user-plant を user_id(PartitionKey) で Query
+    // 2) user-plant を Query
     const q = await ddbDoc.send(
       new QueryCommand({
         TableName: USER_PLANT_TABLE,
@@ -82,14 +94,14 @@ export async function GET(req: Request) {
     );
 
     const plantIds = (q.Items ?? [])
-      .map((x) => (x as UserPlantItem).plant_id)
+      .map((x: unknown) => (x as UserPlantItem).plant_id)
       .filter(Boolean);
 
     if (plantIds.length === 0) {
       return NextResponse.json({ plants: [] }, { status: 200 });
     }
 
-    // 3) infra-dev-plants を plant_id で BatchGet（最大100件/回）
+    // 3) plants を BatchGet
     const uniqueIds = Array.from(new Set(plantIds));
     const chunks: string[][] = [];
     for (let i = 0; i < uniqueIds.length; i += 100) chunks.push(uniqueIds.slice(i, i + 100));
@@ -119,14 +131,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ plants: ordered }, { status: 200 });
   } catch (e: unknown) {
-    console.error(e);
-
     const detail =
-      e instanceof Error ? e.stack ?? e.message : typeof e === "string" ? e : JSON.stringify(e);
+      e instanceof Error ? (e.stack ?? e.message) : typeof e === "string" ? e : JSON.stringify(e);
 
-    return NextResponse.json(
-      { message: "Failed to load plants", detail },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to load plants", detail }, { status: 500 });
   }
 }

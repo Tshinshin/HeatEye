@@ -8,6 +8,15 @@ export const runtime = "nodejs";
 type UserPlantItem = { plant_id: string };
 type PlantItem = { plant_id: string; plant_name: string };
 
+// ddbDoc は「sendできる」ことだけ分かれば十分
+type DynamoDocLike = {
+  send: (command: unknown) => Promise<unknown>;
+};
+
+function isDynamoDocLike(x: unknown): x is DynamoDocLike {
+  return typeof x === "object" && x !== null && "send" in x && typeof (x as { send?: unknown }).send === "function";
+}
+
 let verifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
 
 function getVerifier() {
@@ -30,24 +39,29 @@ function getVerifier() {
   return verifier;
 }
 
+async function getDdbDoc(): Promise<DynamoDocLike> {
+  try {
+    const mod: unknown = await import("@/lib/dynamo");
+    if (typeof mod !== "object" || mod === null || !("ddbDoc" in mod)) {
+      throw new Error("Module '@/lib/dynamo' does not export ddbDoc");
+    }
+    const ddb = (mod as { ddbDoc?: unknown }).ddbDoc;
+    if (!isDynamoDocLike(ddb)) {
+      throw new Error("ddbDoc is not a DocumentClient-like object (missing send)");
+    }
+    return ddb;
+  } catch (e: unknown) {
+    const detail =
+      e instanceof Error ? (e.stack ?? e.message) : typeof e === "string" ? e : JSON.stringify(e);
+    throw new Error(`Failed to import @/lib/dynamo: ${detail}`);
+  }
+}
+
 export async function GET(req: Request) {
   try {
-    // ✅ ここで dynamo を遅延 import（import時の例外も catch できる）
-    let ddbDoc: any;
-    try {
-      const mod = await import("@/lib/dynamo");
-      ddbDoc = mod.ddbDoc;
-      if (!ddbDoc) throw new Error("ddbDoc is undefined (export not found)");
-    } catch (e: unknown) {
-      const detail =
-        e instanceof Error ? (e.stack ?? e.message) : typeof e === "string" ? e : JSON.stringify(e);
-      return NextResponse.json(
-        { message: "Failed to import @/lib/dynamo", detail },
-        { status: 500 }
-      );
-    }
+    const ddbDoc = await getDdbDoc();
 
-    // ✅ env（DDB_* と NEXT_PUBLIC_DDB_* の両方を見る）
+    // ✅ Amplifyで実行時に見えないことがあるので NEXT_PUBLIC_* も保険で見る
     const USER_PLANT_TABLE =
       process.env.DDB_USER_PLANT_TABLE ?? process.env.NEXT_PUBLIC_DDB_USER_PLANT_TABLE;
     const PLANTS_TABLE =
@@ -70,7 +84,6 @@ export async function GET(req: Request) {
       );
     }
 
-    // ✅ Authorization 必須
     const auth = req.headers.get("authorization") || "";
     const m = auth.match(/^Bearer\s+(.+)$/i);
     if (!m) {
@@ -84,7 +97,7 @@ export async function GET(req: Request) {
     const userId = payload.sub;
 
     // 2) user-plant を Query
-    const q = await ddbDoc.send(
+    const qUnknown = await ddbDoc.send(
       new QueryCommand({
         TableName: USER_PLANT_TABLE,
         KeyConditionExpression: "user_id = :u",
@@ -93,22 +106,25 @@ export async function GET(req: Request) {
       })
     );
 
+    // 最低限必要な形に読み替え
+    const q = qUnknown as { Items?: unknown[] };
+
     const plantIds = (q.Items ?? [])
-      .map((x: unknown) => (x as UserPlantItem).plant_id)
+      .map((x) => (x as UserPlantItem).plant_id)
       .filter(Boolean);
 
     if (plantIds.length === 0) {
       return NextResponse.json({ plants: [] }, { status: 200 });
     }
 
-    // 3) plants を BatchGet
+    // 3) plants を BatchGet（最大100件/回）
     const uniqueIds = Array.from(new Set(plantIds));
     const chunks: string[][] = [];
     for (let i = 0; i < uniqueIds.length; i += 100) chunks.push(uniqueIds.slice(i, i + 100));
 
     const results: PlantItem[] = [];
     for (const ids of chunks) {
-      const b = await ddbDoc.send(
+      const bUnknown = await ddbDoc.send(
         new BatchGetCommand({
           RequestItems: {
             [PLANTS_TABLE]: {
@@ -119,7 +135,8 @@ export async function GET(req: Request) {
         })
       );
 
-      const got = (b.Responses?.[PLANTS_TABLE] ?? []) as PlantItem[];
+      const b = bUnknown as { Responses?: Record<string, unknown[]> };
+      const got = ((b.Responses?.[PLANTS_TABLE] ?? []) as PlantItem[]) || [];
       results.push(...got);
     }
 

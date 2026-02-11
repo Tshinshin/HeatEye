@@ -1,0 +1,21 @@
+{
+  "lambdaLayers": [],
+  "environmentVariableList": [
+    {
+      "cloudFormationParameterName": "ddbUserPlantTable",
+      "environmentVariableName": "DDB_USER_PLANT_TABLE"
+    },
+    {
+      "cloudFormationParameterName": "ddbPlantsTable",
+      "environmentVariableName": "DDB_PLANTS_TABLE"
+    },
+    {
+      "cloudFormationParameterName": "cognitoUserPoolId",
+      "environmentVariableName": "COGNITO_USER_POOL_ID"
+    },
+    {
+      "cloudFormationParameterName": "cognitoClientId",
+      "environmentVariableName": "COGNITO_CLIENT_ID"
+    }
+  ]
+}

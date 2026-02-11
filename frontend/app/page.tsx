@@ -25,6 +25,7 @@ export default function Home() {
         console.log("idToken?", !!session.tokens?.idToken);
 
         const idToken = session.tokens?.idToken?.toString();
+        console.log("idToken=", idToken);
         if (!idToken) throw new Error("No idToken. Are you logged in?");
 
         const res = await fetch("/api/plants", {

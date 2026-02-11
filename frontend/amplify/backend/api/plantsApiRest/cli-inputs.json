@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "paths": {
+    "/plants": {
+      "name": "/plants",
+      "lambdaFunction": "plantsApi",
+      "permissions": {
+        "setting": "open"
+      }
+    }
+  }
+}

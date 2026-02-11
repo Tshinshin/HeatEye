@@ -1,4 +1,27 @@
 {
+  "api": {
+    "plantsApiRest": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    }
+  },
+  "function": {
+    "plantsApi": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
   "hosting": {
     "amplifyhosting": {
       "providerPlugin": "awscloudformation",
@@ -7,6 +30,54 @@
     }
   },
   "parameters": {
+    "AMPLIFY_function_plantsApi_cognitoClientId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_cognitoUserPoolId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_ddbPlantsTable": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_ddbUserPlantTable": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
     "AMPLIFY_hosting_amplifyhosting_appId": {
       "usedBy": [
         {

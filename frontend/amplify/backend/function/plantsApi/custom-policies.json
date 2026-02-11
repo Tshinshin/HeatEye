@@ -1,0 +1,17 @@
+[
+  {
+    "Effect": "Allow",
+    "Action": [
+      "dynamodb:Query",
+      "dynamodb:BatchGetItem",
+      "dynamodb:GetItem",
+      "dynamodb:DescribeTable"
+    ],
+    "Resource": [
+      "arn:aws:dynamodb:*:*:table/<<<USER_PLANT_TABLE_NAME>>>",
+      "arn:aws:dynamodb:*:*:table/<<<USER_PLANT_TABLE_NAME>>>/index/*",
+      "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>",
+      "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>/index/*"
+    ]
+  }
+]

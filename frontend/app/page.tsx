@@ -15,31 +15,35 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       console.log("Home useEffect started");
+
       try {
-        
+        // 1) ログイン済みチェック
         const user = await getCurrentUser();
         console.log("currentUser", user);
 
+        // 2) idToken取得
         const session = await fetchAuthSession();
-        console.log("tokens", session.tokens);
-        console.log("idToken?", !!session.tokens?.idToken);
-
         const idToken = session.tokens?.idToken?.toString();
-        console.log("idToken=", idToken);
+
         if (!idToken) throw new Error("No idToken. Are you logged in?");
 
-        const res = await fetch("/api/plants", {
+        // 3) API Base URL（Amplify Consoleの環境変数で設定する）
+        const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+        if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set");
+
+        // 4) API Gatewayへアクセス
+        const res = await fetch(`${base}/plants`, {
           headers: { Authorization: `Bearer ${idToken}` },
           cache: "no-store",
         });
 
+        // 5) エラー処理
         if (!res.ok) {
           const text = await res.text();
 
           let message = `HTTP ${res.status}`;
           let detail = "";
 
-          // JSONっぽければ解析して message/detail を拾う（any不使用）
           try {
             const parsed: unknown = JSON.parse(text);
             if (parsed && typeof parsed === "object") {
@@ -48,20 +52,21 @@ export default function Home() {
               if (typeof obj.detail === "string") detail = obj.detail;
             }
           } catch {
-            // JSONじゃなければそのまま（textは使わない）
+            // JSONでない場合は無視
           }
 
           throw new Error(detail ? `${message} / ${detail}` : message);
         }
 
+        // 6) 成功
         const data = (await res.json()) as { plants: Plant[] };
         setPlants(data.plants ?? []);
-        } catch (e: unknown) {
-          console.error("Home auth error:", e);
-          const msg =
-            e instanceof Error ? e.message : typeof e === "string" ? e : JSON.stringify(e);
-          setError(msg);
-        }
+      } catch (e: unknown) {
+        console.error("Home load error:", e);
+        const msg =
+          e instanceof Error ? e.message : typeof e === "string" ? e : JSON.stringify(e);
+        setError(msg);
+      }
     })();
   }, []);
 
@@ -82,6 +87,7 @@ export default function Home() {
             <th className="border border-gray-300 px-4 py-2 text-center">操作</th>
           </tr>
         </thead>
+
         <tbody>
           {plants.map((p) => (
             <tr key={p.plant_id} className="hover:bg-gray-50">
@@ -93,9 +99,13 @@ export default function Home() {
               </td>
             </tr>
           ))}
+
           {plants.length === 0 && !error && (
             <tr>
-              <td className="border border-gray-300 px-4 py-6 text-sm text-gray-500" colSpan={2}>
+              <td
+                className="border border-gray-300 px-4 py-6 text-sm text-gray-500"
+                colSpan={2}
+              >
                 表示できるプラントがありません
               </td>
             </tr>

@@ -62,16 +62,30 @@ function json(statusCode, body, extraHeaders) {
   };
 }
 
-function getHeader(headers, name) {
-  if (!headers) return "";
-  // API Gateway は小文字/大文字混在があり得る
-  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || "";
+// ✅ Authorization ヘッダを “あらゆる場所” から拾う
+function getAuthorization(event) {
+  const h = (event && event.headers) || {};
+  const mvh = (event && event.multiValueHeaders) || {};
+
+  const direct =
+    h.authorization ||
+    h.Authorization ||
+    h.AUTHORIZATION ||
+    "";
+
+  if (direct) return String(direct);
+
+  const mv =
+    (mvh.authorization && mvh.authorization[0]) ||
+    (mvh.Authorization && mvh.Authorization[0]) ||
+    (mvh.AUTHORIZATION && mvh.AUTHORIZATION[0]) ||
+    "";
+
+  return mv ? String(mv) : "";
 }
 
 exports.handler = async (event) => {
   // --- Preflight (CORS) ---
-  // REST API: event.httpMethod
-  // HTTP API: event.requestContext?.http?.method などもあるが、まずは httpMethod を優先
   const method =
     event?.httpMethod ||
     event?.requestContext?.http?.method ||
@@ -105,10 +119,21 @@ exports.handler = async (event) => {
       });
     }
 
-    const auth = getHeader(event.headers, "authorization");
+    const auth = getAuthorization(event);
     const m = String(auth).match(/^Bearer\s+(.+)$/i);
     if (!m) {
-      return json(401, { message: "Missing Authorization header" });
+      // デバッグに役立つように「何が来ているか」を最低限だけ返す（機密は出さない）
+      return json(401, {
+        message: "Missing Authorization header",
+        detail: {
+          hasHeaders: !!event?.headers,
+          hasMultiValueHeaders: !!event?.multiValueHeaders,
+          headerKeys: event?.headers ? Object.keys(event.headers).slice(0, 50) : [],
+          mvHeaderKeys: event?.multiValueHeaders
+            ? Object.keys(event.multiValueHeaders).slice(0, 50)
+            : [],
+        },
+      });
     }
 
     const token = m[1];
@@ -170,9 +195,6 @@ exports.handler = async (event) => {
     const detail =
       e && (e.stack || e.message) ? (e.stack || e.message) : String(e);
 
-    return json(500, {
-      message: "Failed to load plants",
-      detail,
-    });
+    return json(500, { message: "Failed to load plants", detail });
   }
 };

@@ -8,7 +8,8 @@ const {
 } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-const REGION = process.env.REGION || process.env.AWS_REGION || "ap-northeast-1";
+// Lambda 環境では AWS_REGION が自動で入ることが多いのでそれを優先
+const REGION = process.env.AWS_REGION || process.env.REGION || "ap-northeast-1";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
   marshallOptions: { removeUndefinedValues: true },
@@ -27,29 +28,6 @@ function withCors(headers) {
   return { ...corsHeaders, ...(headers || {}) };
 }
 
-let verifier = null;
-function getVerifier() {
-  const userPoolId =
-    process.env.COGNITO_USER_POOL_ID || process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID;
-  const clientId =
-    process.env.COGNITO_CLIENT_ID || process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
-
-  if (!userPoolId || !clientId) {
-    throw new Error(
-      "Cognito envs are not set (COGNITO_USER_POOL_ID / COGNITO_CLIENT_ID)"
-    );
-  }
-
-  if (!verifier) {
-    verifier = CognitoJwtVerifier.create({
-      userPoolId,
-      tokenUse: "id",
-      clientId,
-    });
-  }
-  return verifier;
-}
-
 function json(statusCode, body, extraHeaders) {
   return {
     statusCode,
@@ -62,17 +40,12 @@ function json(statusCode, body, extraHeaders) {
   };
 }
 
-// ✅ Authorization ヘッダを “あらゆる場所” から拾う
+// ✅ Authorization ヘッダを “あらゆる場所” から拾う（APIGWの差異吸収）
 function getAuthorization(event) {
   const h = (event && event.headers) || {};
   const mvh = (event && event.multiValueHeaders) || {};
 
-  const direct =
-    h.authorization ||
-    h.Authorization ||
-    h.AUTHORIZATION ||
-    "";
-
+  const direct = h.authorization || h.Authorization || h.AUTHORIZATION || "";
   if (direct) return String(direct);
 
   const mv =
@@ -84,13 +57,30 @@ function getAuthorization(event) {
   return mv ? String(mv) : "";
 }
 
+// verifier は遅延生成（コールドスタートでも無駄な初期化を避ける）
+let verifier = null;
+function getVerifier() {
+  // ✅ Lambda 側は NEXT_PUBLIC_* を使わない（クリーン＆事故防止）
+  const userPoolId = process.env.COGNITO_USER_POOL_ID;
+  const clientId = process.env.COGNITO_CLIENT_ID;
+
+  if (!userPoolId || !clientId) {
+    throw new Error("Cognito envs are not set (COGNITO_USER_POOL_ID / COGNITO_CLIENT_ID)");
+  }
+
+  if (!verifier) {
+    verifier = CognitoJwtVerifier.create({
+      userPoolId,
+      tokenUse: "id", // 将来 access token に寄せるなら "access"
+      clientId,
+    });
+  }
+  return verifier;
+}
+
 exports.handler = async (event) => {
   // --- Preflight (CORS) ---
-  const method =
-    event?.httpMethod ||
-    event?.requestContext?.http?.method ||
-    "";
-
+  const method = event?.httpMethod || event?.requestContext?.http?.method || "";
   if (String(method).toUpperCase() === "OPTIONS") {
     return {
       statusCode: 200,
@@ -100,21 +90,19 @@ exports.handler = async (event) => {
   }
 
   try {
-    const USER_PLANT_TABLE =
-      process.env.DDB_USER_PLANT_TABLE || process.env.NEXT_PUBLIC_DDB_USER_PLANT_TABLE;
-    const PLANTS_TABLE =
-      process.env.DDB_PLANTS_TABLE || process.env.NEXT_PUBLIC_DDB_PLANTS_TABLE;
+    // ✅ Lambda 側は NEXT_PUBLIC_* を使わない（クリーン＆事故防止）
+    const USER_PLANT_TABLE = process.env.DDB_USER_PLANT_TABLE;
+    const PLANTS_TABLE = process.env.DDB_PLANTS_TABLE;
 
     if (!USER_PLANT_TABLE || !PLANTS_TABLE) {
+      // ここは運用で詰まるので “どれが足りないか” だけ返す（値は返さない）
       return json(500, {
         message: "DynamoDB table envs are not set",
         detail: {
           DDB_USER_PLANT_TABLE: !!process.env.DDB_USER_PLANT_TABLE,
           DDB_PLANTS_TABLE: !!process.env.DDB_PLANTS_TABLE,
-          NEXT_PUBLIC_DDB_USER_PLANT_TABLE: !!process.env.NEXT_PUBLIC_DDB_USER_PLANT_TABLE,
-          NEXT_PUBLIC_DDB_PLANTS_TABLE: !!process.env.NEXT_PUBLIC_DDB_PLANTS_TABLE,
-          REGION: process.env.REGION ?? null,
           AWS_REGION: process.env.AWS_REGION ?? null,
+          REGION: process.env.REGION ?? null,
         },
       });
     }
@@ -122,18 +110,16 @@ exports.handler = async (event) => {
     const auth = getAuthorization(event);
     const m = String(auth).match(/^Bearer\s+(.+)$/i);
     if (!m) {
-      // デバッグに役立つように「何が来ているか」を最低限だけ返す（機密は出さない）
-      return json(401, {
-        message: "Missing Authorization header",
-        detail: {
-          hasHeaders: !!event?.headers,
-          hasMultiValueHeaders: !!event?.multiValueHeaders,
-          headerKeys: event?.headers ? Object.keys(event.headers).slice(0, 50) : [],
-          mvHeaderKeys: event?.multiValueHeaders
-            ? Object.keys(event.multiValueHeaders).slice(0, 50)
-            : [],
-        },
+      // ✅ 401 はレスポンスを最小限に。詳細はログへ。
+      console.warn("Missing/invalid Authorization header", {
+        hasHeaders: !!event?.headers,
+        hasMultiValueHeaders: !!event?.multiValueHeaders,
+        headerKeys: event?.headers ? Object.keys(event.headers).slice(0, 50) : [],
+        mvHeaderKeys: event?.multiValueHeaders
+          ? Object.keys(event.multiValueHeaders).slice(0, 50)
+          : [],
       });
+      return json(401, { message: "Unauthorized" });
     }
 
     const token = m[1];
@@ -192,9 +178,7 @@ exports.handler = async (event) => {
 
     return json(200, { plants: ordered });
   } catch (e) {
-    const detail =
-      e && (e.stack || e.message) ? (e.stack || e.message) : String(e);
-
+    const detail = e && (e.stack || e.message) ? (e.stack || e.message) : String(e);
     return json(500, { message: "Failed to load plants", detail });
   }
 };

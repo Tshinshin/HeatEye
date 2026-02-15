@@ -75,7 +75,10 @@ export function LoginForm() {
 
         // 初回ログイン等で「新パスワード必須」になった場合（Amplifyの表記ゆれ対策）
         const step = res.nextStep?.signInStep;
-        if (typeof step === "string" && step.toLowerCase().includes("new_password")) {
+        if (
+          typeof step === "string" &&
+          step.toLowerCase().includes("new_password")
+        ) {
           setChallenge("NEW_PASSWORD_REQUIRED");
           setError("初回ログインのため、新しいパスワードの設定が必要です。");
           return;
@@ -83,7 +86,9 @@ export function LoginForm() {
 
         // 他のチャレンジ（MFA等）が来た場合は、まずエラーで気づけるようにする
         if (res.nextStep?.signInStep && res.nextStep.signInStep !== "DONE") {
-          setError(`追加のサインイン手順が必要です: ${res.nextStep.signInStep}`);
+          setError(
+            `追加のサインイン手順が必要です: ${res.nextStep.signInStep}`
+          );
           return;
         }
 
@@ -107,7 +112,9 @@ export function LoginForm() {
 
         // もしまだ別のステップが残っていたら表示
         if (res.nextStep?.signInStep && res.nextStep.signInStep !== "DONE") {
-          setError(`追加のサインイン手順が必要です: ${res.nextStep.signInStep}`);
+          setError(
+            `追加のサインイン手順が必要です: ${res.nextStep.signInStep}`
+          );
           return;
         }
 
@@ -202,12 +209,12 @@ export function LoginForm() {
             {isNewPassword ? "新しいパスワードを設定" : "ログイン"}
           </Button>
 
-          {/* ★追加：ログイン前のパスワード変更画面へ */}
+          {/* ★追加：ログイン前のパスワード変更画面へ（薄いグレーでボタンっぽく） */}
           {!isNewPassword && (
             <Button
               type="button"
               variant="ghost"
-              className="w-full"
+              className="w-full bg-muted/60 hover:bg-muted"
               onClick={() =>
                 router.push(
                   `/change-password?email=${encodeURIComponent(
@@ -238,7 +245,9 @@ export function LoginForm() {
       </Form>
 
       <p className="text-center text-sm text-muted-foreground">
-        まだアカウントがありませんか？（xxxx@i-rela.comに問い合わせてください）
+        まだアカウントがありませんか？
+        <br />
+        （xxxx@i-rela.comに問い合わせてください）
       </p>
     </div>
   );

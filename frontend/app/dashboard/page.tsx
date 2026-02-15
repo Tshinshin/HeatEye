@@ -1,8 +1,8 @@
+// app/dashboard/page.tsx
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getCurrentUser, fetchAuthSession } from "aws-amplify/auth"
 
 type DeviceFromApi = {
   plant_id: string
@@ -28,71 +29,78 @@ type DeviceView = {
   location: string
 }
 
-// any禁止対策：unknown を安全に文字列化
-function toErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message
-  if (typeof err === "string") return err
-  try {
-    return JSON.stringify(err)
-  } catch {
-    return "Unknown error"
-  }
-}
-
 export default function DashboardPage() {
-  const sp = useSearchParams()
-  const plantId = sp.get("plantId") ?? undefined
-
+  const [plantId, setPlantId] = useState<string>("")
   const [devices, setDevices] = useState<DeviceView[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+  // API Base URL（Amplify Consoleの環境変数で設定する）
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL
+
+  // クエリ取得（useSearchParamsは使わない）
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    setPlantId(sp.get("plantId") ?? "")
+  }, [])
 
   const endpoint = useMemo(() => {
-    if (!apiBaseUrl || !plantId) return null
-    return `${apiBaseUrl}/devices?plantId=${encodeURIComponent(plantId)}`
-  }, [apiBaseUrl, plantId])
+    if (!base || !plantId) return ""
+    return `${base}/devices?plantId=${encodeURIComponent(plantId)}`
+  }, [base, plantId])
 
   useEffect(() => {
-    const run = async () => {
-      setError(null)
+    ;(async () => {
+      setError("")
+      setDevices([])
 
-      if (!plantId) {
-        setDevices([])
-        setError("plantId が指定されていません（URLの ?plantId=... を確認してください）")
-        return
-      }
-
-      if (!endpoint) {
-        setDevices([])
-        setError("APIのURLが未設定です（NEXT_PUBLIC_API_BASE_URL を設定してください）")
-        return
-      }
-
-      setLoading(true)
+      if (!plantId) return
 
       try {
+        setLoading(true)
+
+        // 1) ログイン済みチェック
+        const user = await getCurrentUser()
+        console.log("currentUser", user)
+
+        // 2) idToken取得
+        const session = await fetchAuthSession()
+        const idToken = session.tokens?.idToken?.toString()
+        if (!idToken) throw new Error("No idToken. Are you logged in?")
+
+        // 3) API Base URL確認
+        if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+
+        // 4) API Gatewayへアクセス
         const res = await fetch(endpoint, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            // Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${idToken}` },
           cache: "no-store",
         })
 
+        // 5) エラー処理（Homeと同じ流儀）
         if (!res.ok) {
-          const text = await res.text().catch(() => "")
-          throw new Error(`API error: ${res.status} ${res.statusText}\n${text}`)
+          const text = await res.text()
+
+          let message = `HTTP ${res.status}`
+          let detail = ""
+
+          try {
+            const parsed: unknown = JSON.parse(text)
+            if (parsed && typeof parsed === "object") {
+              const obj = parsed as Record<string, unknown>
+              if (typeof obj.message === "string") message = obj.message
+              if (typeof obj.detail === "string") detail = obj.detail
+            }
+          } catch {
+            // JSONでない場合は無視
+          }
+
+          throw new Error(detail ? `${message} / ${detail}` : message)
         }
 
-        const json: unknown = await res.json()
-
-        // { items: [...] } と [...] の両対応
-        const items = Array.isArray(json)
-          ? (json as DeviceFromApi[])
-          : ((json as { items?: DeviceFromApi[] })?.items ?? [])
+        // 6) 成功
+        const data = (await res.json()) as { items: DeviceFromApi[] }
+        const items = data.items ?? []
 
         const view: DeviceView[] = items.map((d) => ({
           id: d.device_id,
@@ -103,22 +111,26 @@ export default function DashboardPage() {
 
         setDevices(view)
       } catch (e: unknown) {
-        setDevices([])
-        setError(toErrorMessage(e))
+        console.error("Dashboard load error:", e)
+        const msg =
+          e instanceof Error
+            ? e.message
+            : typeof e === "string"
+              ? e
+              : JSON.stringify(e)
+        setError(msg)
       } finally {
         setLoading(false)
       }
-    }
-
-    run()
-  }, [plantId, endpoint])
+    })()
+  }, [plantId, base, endpoint])
 
   return (
     <div className="p-6 space-y-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold">ダッシュボード</h1>
         <div className="text-sm text-muted-foreground">
-          Plant ID: <span className="font-mono">{plantId ?? "(none)"}</span>
+          Plant ID: <span className="font-mono">{plantId || "(none)"}</span>
         </div>
       </div>
 
@@ -129,7 +141,7 @@ export default function DashboardPage() {
 
         {error && (
           <div className="text-sm text-red-600 whitespace-pre-wrap">
-            {error}
+            読み込みエラー: {error}
           </div>
         )}
 
@@ -159,10 +171,18 @@ export default function DashboardPage() {
               </TableRow>
             ))}
 
-            {!loading && !error && devices.length === 0 && (
+            {!loading && !error && devices.length === 0 && plantId && (
               <TableRow>
                 <TableCell colSpan={4} className="text-sm text-muted-foreground">
                   該当データがありません
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!plantId && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-sm text-muted-foreground">
+                  plantId が指定されていません（URLの ?plantId=... を確認してください）
                 </TableCell>
               </TableRow>
             )}

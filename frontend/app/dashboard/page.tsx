@@ -28,8 +28,18 @@ type DeviceView = {
 }
 
 type Props = {
-  // /dashboard?plantId=xxx で渡される想定
   searchParams?: { plantId?: string }
+}
+
+// any禁止対策：unknown を安全に文字列化
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === "string") return err
+  try {
+    return JSON.stringify(err)
+  } catch {
+    return "Unknown error"
+  }
 }
 
 export default function DashboardPage({ searchParams }: Props) {
@@ -39,7 +49,6 @@ export default function DashboardPage({ searchParams }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 例: https://xxxxxxxx.execute-api.ap-northeast-1.amazonaws.com/dev
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
 
   const endpoint = useMemo(() => {
@@ -66,9 +75,6 @@ export default function DashboardPage({ searchParams }: Props) {
       setLoading(true)
 
       try {
-        // ★Cognito認証が必要ならここでトークンを付ける必要があります
-        // 現時点では「トップページの plants 取得」と同じ方式になるはずなので、
-        // トップページ側で付けている Authorization の付け方に合わせてください。
         const res = await fetch(endpoint, {
           method: "GET",
           headers: {
@@ -80,13 +86,15 @@ export default function DashboardPage({ searchParams }: Props) {
 
         if (!res.ok) {
           const text = await res.text().catch(() => "")
-          throw new Error(
-            `API error: ${res.status} ${res.statusText}\n${text}`
-          )
+          throw new Error(`API error: ${res.status} ${res.statusText}\n${text}`)
         }
 
-        const json = await res.json()
-        const items: DeviceFromApi[] = json?.items ?? []
+        const json: unknown = await res.json()
+
+        // { items: [...] } と [...] の両対応
+        const items = Array.isArray(json)
+          ? (json as DeviceFromApi[])
+          : ((json as { items?: DeviceFromApi[] })?.items ?? [])
 
         const view: DeviceView[] = items.map((d) => ({
           id: d.device_id,
@@ -96,9 +104,9 @@ export default function DashboardPage({ searchParams }: Props) {
         }))
 
         setDevices(view)
-      } catch (e: any) {
+      } catch (e: unknown) {
         setDevices([])
-        setError(e?.message ?? "Unknown error")
+        setError(toErrorMessage(e))
       } finally {
         setLoading(false)
       }

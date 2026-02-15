@@ -29,7 +29,8 @@ function getErrString(err: unknown): string {
   if (typeof err === "object" && err !== null) {
     const e = err as Record<string, unknown>;
     const name = typeof e.name === "string" ? e.name : "Error";
-    const msg = typeof e.message === "string" ? e.message : "ログインに失敗しました";
+    const msg =
+      typeof e.message === "string" ? e.message : "ログインに失敗しました";
     return `${name}: ${msg}`;
   }
   return "ログインに失敗しました";
@@ -49,7 +50,9 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   // NEW_PASSWORD_REQUIRED 用（Amplify では nextStep.signInStep で判定）
-  const [challenge, setChallenge] = useState<"NEW_PASSWORD_REQUIRED" | null>(null);
+  const [challenge, setChallenge] = useState<"NEW_PASSWORD_REQUIRED" | null>(
+    null
+  );
 
   const form = useForm<LoginValues>({
     defaultValues: {
@@ -198,6 +201,24 @@ export function LoginForm() {
           <Button type="submit" className="w-full">
             {isNewPassword ? "新しいパスワードを設定" : "ログイン"}
           </Button>
+
+          {/* ★追加：ログイン前のパスワード変更画面へ */}
+          {!isNewPassword && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() =>
+                router.push(
+                  `/change-password?email=${encodeURIComponent(
+                    form.getValues("email") ?? ""
+                  )}`
+                )
+              }
+            >
+              パスワードの変更
+            </Button>
+          )}
 
           {isNewPassword && (
             <Button

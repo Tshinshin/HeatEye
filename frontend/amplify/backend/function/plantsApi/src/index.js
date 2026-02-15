@@ -127,6 +127,36 @@ async function loadDevicesByPlant({ devicesTable, plantId }) {
   return r.Items || [];
 }
 
+// 追加：readings取得
+async function loadReadingsByDevice({ readingsTable, deviceId }) {
+  const r = await ddb.send(
+    new QueryCommand({
+      TableName: readingsTable,
+      KeyConditionExpression: "device_id = :d",
+      ExpressionAttributeValues: { ":d": deviceId },
+
+      // timestamp は念のため別名（予約語扱い回避）
+      ProjectionExpression: "device_id, #ts, reading, image",
+      ExpressionAttributeNames: {
+        "#ts": "timestamp",
+      },
+    })
+  );
+
+  const items = r.Items || [];
+
+  // timestamp降順（SortKeyでない可能性があるのでアプリ側でソート）
+  items.sort((a, b) => {
+    const ta = String(a.timestamp ?? "");
+    const tb = String(b.timestamp ?? "");
+    if (ta < tb) return 1;
+    if (ta > tb) return -1;
+    return 0;
+  });
+
+  return items;
+}
+
 exports.handler = async (event) => {
   const method = event?.httpMethod || event?.requestContext?.http?.method || "";
   if (String(method).toUpperCase() === "OPTIONS") {
@@ -195,6 +225,28 @@ exports.handler = async (event) => {
 
       // フロントが使いやすい形で返す（items配列）
       return json(200, { items: devices });
+    }
+
+    // ★★★ 追加：/readings ルート ★★★
+    if (path.endsWith("/readings")) {
+      const READINGS_TABLE = process.env.DDB_READINGS_TABLE;
+      if (!READINGS_TABLE) {
+        return json(500, { message: "DDB_READINGS_TABLE is not set" });
+      }
+
+      const deviceId =
+        getQueryParam(event, "deviceId") || getQueryParam(event, "device_id");
+
+      if (!deviceId) {
+        return json(400, { message: "deviceId is required" });
+      }
+
+      const items = await loadReadingsByDevice({
+        readingsTable: READINGS_TABLE,
+        deviceId,
+      });
+
+      return json(200, { items });
     }
 
     // --- 既存：plants一覧（そのまま） ---

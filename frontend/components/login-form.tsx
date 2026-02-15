@@ -70,8 +70,9 @@ export function LoginForm() {
           password: values.password,
         });
 
-        // 初回ログイン等で「新パスワード必須」になった場合
-        if (res.nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+        // 初回ログイン等で「新パスワード必須」になった場合（Amplifyの表記ゆれ対策）
+        const step = res.nextStep?.signInStep;
+        if (typeof step === "string" && step.toLowerCase().includes("new_password")) {
           setChallenge("NEW_PASSWORD_REQUIRED");
           setError("初回ログインのため、新しいパスワードの設定が必要です。");
           return;

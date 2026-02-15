@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -27,10 +28,6 @@ type DeviceView = {
   location: string
 }
 
-type Props = {
-  searchParams?: { plantId?: string }
-}
-
 // any禁止対策：unknown を安全に文字列化
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -42,8 +39,9 @@ function toErrorMessage(err: unknown): string {
   }
 }
 
-export default function DashboardPage({ searchParams }: Props) {
-  const plantId = searchParams?.plantId
+export default function DashboardPage() {
+  const sp = useSearchParams()
+  const plantId = sp.get("plantId") ?? undefined
 
   const [devices, setDevices] = useState<DeviceView[]>([])
   const [loading, setLoading] = useState(false)
@@ -62,7 +60,7 @@ export default function DashboardPage({ searchParams }: Props) {
 
       if (!plantId) {
         setDevices([])
-        setError("plantId が指定されていません（トップからの遷移URLを確認してください）")
+        setError("plantId が指定されていません（URLの ?plantId=... を確認してください）")
         return
       }
 

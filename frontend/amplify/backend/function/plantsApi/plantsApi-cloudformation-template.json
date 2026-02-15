@@ -214,16 +214,44 @@
               ],
               "Resource": [
                 {
-                  "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-dev-user-plant"
+                  "Fn::Sub": [
+                    "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}",
+                    {
+                      "T": {
+                        "Ref": "ddbUserPlantTable"
+                      }
+                    }
+                  ]
                 },
                 {
-                  "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-dev-user-plant/index/*"
+                  "Fn::Sub": [
+                    "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}/index/*",
+                    {
+                      "T": {
+                        "Ref": "ddbUserPlantTable"
+                      }
+                    }
+                  ]
                 },
                 {
-                  "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-dev-plants"
+                  "Fn::Sub": [
+                    "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}",
+                    {
+                      "T": {
+                        "Ref": "ddbPlantsTable"
+                      }
+                    }
+                  ]
                 },
                 {
-                  "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-dev-plants/index/*"
+                  "Fn::Sub": [
+                    "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}/index/*",
+                    {
+                      "T": {
+                        "Ref": "ddbPlantsTable"
+                      }
+                    }
+                  ]
                 }
               ]
             }

@@ -8,14 +8,12 @@ const {
 } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-// Lambda 環境では AWS_REGION が自動で入ることが多いのでそれを優先
 const REGION = process.env.AWS_REGION || process.env.REGION || "ap-northeast-1";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
   marshallOptions: { removeUndefinedValues: true },
 });
 
-// --- CORS (always attach) ---
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -40,7 +38,6 @@ function json(statusCode, body, extraHeaders) {
   };
 }
 
-// ✅ Authorization ヘッダを “あらゆる場所” から拾う（APIGWの差異吸収）
 function getAuthorization(event) {
   const h = (event && event.headers) || {};
   const mvh = (event && event.multiValueHeaders) || {};
@@ -57,29 +54,81 @@ function getAuthorization(event) {
   return mv ? String(mv) : "";
 }
 
-// verifier は遅延生成（コールドスタートでも無駄な初期化を避ける）
 let verifier = null;
 function getVerifier() {
-  // ✅ Lambda 側は NEXT_PUBLIC_* を使わない（クリーン＆事故防止）
   const userPoolId = process.env.COGNITO_USER_POOL_ID;
   const clientId = process.env.COGNITO_CLIENT_ID;
 
   if (!userPoolId || !clientId) {
-    throw new Error("Cognito envs are not set (COGNITO_USER_POOL_ID / COGNITO_CLIENT_ID)");
+    throw new Error(
+      "Cognito envs are not set (COGNITO_USER_POOL_ID / COGNITO_CLIENT_ID)"
+    );
   }
 
   if (!verifier) {
     verifier = CognitoJwtVerifier.create({
       userPoolId,
-      tokenUse: "id", // 将来 access token に寄せるなら "access"
+      tokenUse: "id",
       clientId,
     });
   }
   return verifier;
 }
 
+// 追加：path判定を吸収
+function getPath(event) {
+  return (
+    event?.rawPath ||
+    event?.requestContext?.http?.path ||
+    event?.path ||
+    ""
+  );
+}
+
+function getQueryParam(event, key) {
+  const q = event?.queryStringParameters || {};
+  return q[key];
+}
+
+// 追加：ユーザーがそのplantにアクセスできるか確認（user-plantをQueryして存在チェック）
+async function assertUserCanAccessPlant({ userId, plantId, userPlantTable }) {
+  const q = await ddb.send(
+    new QueryCommand({
+      TableName: userPlantTable,
+      KeyConditionExpression: "user_id = :u",
+      ExpressionAttributeValues: { ":u": userId },
+      ProjectionExpression: "plant_id",
+    })
+  );
+
+  const plantIds = (q.Items || [])
+    .map((x) => x?.plant_id)
+    .filter(Boolean);
+
+  if (!plantIds.includes(plantId)) {
+    // 403の方が正確（認証は通ってるが権限がない）
+    const err = new Error("Forbidden");
+    err.statusCode = 403;
+    throw err;
+  }
+}
+
+// 追加：devices取得
+async function loadDevicesByPlant({ devicesTable, plantId }) {
+  const r = await ddb.send(
+    new QueryCommand({
+      TableName: devicesTable,
+      KeyConditionExpression: "plant_id = :p",
+      ExpressionAttributeValues: { ":p": plantId },
+      ProjectionExpression:
+        "plant_id, device_id, device_name, latest_value, location",
+    })
+  );
+
+  return r.Items || [];
+}
+
 exports.handler = async (event) => {
-  // --- Preflight (CORS) ---
   const method = event?.httpMethod || event?.requestContext?.http?.method || "";
   if (String(method).toUpperCase() === "OPTIONS") {
     return {
@@ -90,17 +139,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    // ✅ Lambda 側は NEXT_PUBLIC_* を使わない（クリーン＆事故防止）
     const USER_PLANT_TABLE = process.env.DDB_USER_PLANT_TABLE;
     const PLANTS_TABLE = process.env.DDB_PLANTS_TABLE;
+    const DEVICES_TABLE = process.env.DDB_DEVICES_TABLE; // ★追加
 
     if (!USER_PLANT_TABLE || !PLANTS_TABLE) {
-      // ここは運用で詰まるので “どれが足りないか” だけ返す（値は返さない）
       return json(500, {
         message: "DynamoDB table envs are not set",
         detail: {
           DDB_USER_PLANT_TABLE: !!process.env.DDB_USER_PLANT_TABLE,
           DDB_PLANTS_TABLE: !!process.env.DDB_PLANTS_TABLE,
+          DDB_DEVICES_TABLE: !!process.env.DDB_DEVICES_TABLE,
           AWS_REGION: process.env.AWS_REGION ?? null,
           REGION: process.env.REGION ?? null,
         },
@@ -109,26 +158,47 @@ exports.handler = async (event) => {
 
     const auth = getAuthorization(event);
     const m = String(auth).match(/^Bearer\s+(.+)$/i);
-    if (!m) {
-      // ✅ 401 はレスポンスを最小限に。詳細はログへ。
-      console.warn("Missing/invalid Authorization header", {
-        hasHeaders: !!event?.headers,
-        hasMultiValueHeaders: !!event?.multiValueHeaders,
-        headerKeys: event?.headers ? Object.keys(event.headers).slice(0, 50) : [],
-        mvHeaderKeys: event?.multiValueHeaders
-          ? Object.keys(event.multiValueHeaders).slice(0, 50)
-          : [],
-      });
-      return json(401, { message: "Unauthorized" });
-    }
-
+    if (!m) return json(401, { message: "Unauthorized" });
     const token = m[1];
 
-    // 1) JWT 検証 & sub 取得
+    // JWT検証
     const payload = await getVerifier().verify(token);
     const userId = payload.sub;
 
-    // 2) user-plant を Query
+    // ルーティング判定
+    const path = getPath(event);
+
+    // ★★★ 追加：/devices ルート ★★★
+    if (path.endsWith("/devices")) {
+      if (!DEVICES_TABLE) {
+        return json(500, { message: "DDB_DEVICES_TABLE is not set" });
+      }
+
+      const plantId =
+        getQueryParam(event, "plantId") || getQueryParam(event, "plant_id");
+
+      if (!plantId) {
+        return json(400, { message: "plantId is required" });
+      }
+
+      // 認可：そのユーザーがそのplantにアクセスできるか
+      await assertUserCanAccessPlant({
+        userId,
+        plantId,
+        userPlantTable: USER_PLANT_TABLE,
+      });
+
+      // devices取得
+      const devices = await loadDevicesByPlant({
+        devicesTable: DEVICES_TABLE,
+        plantId,
+      });
+
+      // フロントが使いやすい形で返す（items配列）
+      return json(200, { items: devices });
+    }
+
+    // --- 既存：plants一覧（そのまま） ---
     const q = await ddb.send(
       new QueryCommand({
         TableName: USER_PLANT_TABLE,
@@ -146,7 +216,6 @@ exports.handler = async (event) => {
       return json(200, { plants: [] });
     }
 
-    // 3) plants を BatchGet（最大100件/回）
     const uniqueIds = Array.from(new Set(plantIds));
     const chunks = [];
     for (let i = 0; i < uniqueIds.length; i += 100) {
@@ -178,7 +247,9 @@ exports.handler = async (event) => {
 
     return json(200, { plants: ordered });
   } catch (e) {
-    const detail = e && (e.stack || e.message) ? (e.stack || e.message) : String(e);
-    return json(500, { message: "Failed to load plants", detail });
+    const statusCode = e?.statusCode || 500;
+    const detail =
+      e && (e.stack || e.message) ? e.stack || e.message : String(e);
+    return json(statusCode, { message: "Request failed", detail });
   }
 };

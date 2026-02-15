@@ -216,25 +216,41 @@
                 {
                   "Fn::Sub": [
                     "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}",
-                    { "T": { "Ref": "ddbUserPlantTable" } }
+                    {
+                      "T": {
+                        "Ref": "ddbUserPlantTable"
+                      }
+                    }
                   ]
                 },
                 {
                   "Fn::Sub": [
                     "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}/index/*",
-                    { "T": { "Ref": "ddbUserPlantTable" } }
+                    {
+                      "T": {
+                        "Ref": "ddbUserPlantTable"
+                      }
+                    }
                   ]
                 },
                 {
                   "Fn::Sub": [
                     "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}",
-                    { "T": { "Ref": "ddbPlantsTable" } }
+                    {
+                      "T": {
+                        "Ref": "ddbPlantsTable"
+                      }
+                    }
                   ]
                 },
                 {
                   "Fn::Sub": [
-                  "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}/index/*",
-                    { "T": { "Ref": "ddbPlantsTable" } }
+                    "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${T}/index/*",
+                    {
+                      "T": {
+                        "Ref": "ddbPlantsTable"
+                      }
+                    }
                   ]
                 },
                 {
@@ -248,6 +264,38 @@
           ]
         }
       }
+    },
+    "CustomLambdaExecutionPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "custom-lambda-execution-policy",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:Query",
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetItem",
+                "dynamodb:DescribeTable"
+              ],
+              "Resource": [
+                "arn:aws:dynamodb:*:*:table/<<<USER_PLANT_TABLE_NAME>>>",
+                "arn:aws:dynamodb:*:*:table/<<<USER_PLANT_TABLE_NAME>>>/index/*",
+                "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>",
+                "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>/index/*"
+              ]
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "LambdaExecutionRole"
+          }
+        ]
+      },
+      "DependsOn": "LambdaExecutionRole"
     }
   },
   "Outputs": {

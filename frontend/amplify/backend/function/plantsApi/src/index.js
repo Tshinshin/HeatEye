@@ -120,8 +120,7 @@ async function loadDevicesByPlant({ devicesTable, plantId }) {
       TableName: devicesTable,
       KeyConditionExpression: "plant_id = :p",
       ExpressionAttributeValues: { ":p": plantId },
-      ProjectionExpression:
-        "plant_id, device_id, device_name, latest_value, location",
+      // ProjectionExpression を書かない（全属性返す）
     })
   );
 

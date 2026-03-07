@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -18,9 +19,7 @@ type MenuItem = {
 };
 
 export default function AppSidebarMenu() {
-  // 今は固定表示
-  // 将来ここをログイン状態やプラント選択状態で切り替える
-  const menuItems: MenuItem[] = [
+  const sensorMenus: MenuItem[] = [
     { label: "日報", href: "/daily-report" },
     { label: "温度センサー", href: "/temperature-sensor" },
     { label: "振動センサー", href: "/vibration-sensor" },
@@ -39,9 +38,11 @@ export default function AppSidebarMenu() {
           <SheetTitle>メニュー</SheetTitle>
         </SheetHeader>
 
-        <nav className="mt-6">
+        <nav className="mt-6 space-y-4">
+
+          {/* センサー関連 */}
           <ul className="space-y-2">
-            {menuItems.map((item) => (
+            {sensorMenus.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
@@ -52,6 +53,22 @@ export default function AppSidebarMenu() {
               </li>
             ))}
           </ul>
+
+          {/* 分割線 */}
+          <Separator />
+
+          {/* プラント */}
+          <ul className="space-y-2">
+            <li>
+              <Link
+                href="/plants"
+                className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+              >
+                プラント一覧
+              </Link>
+            </li>
+          </ul>
+
         </nav>
       </SheetContent>
     </Sheet>

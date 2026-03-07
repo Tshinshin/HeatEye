@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { Suspense } from "react";
 import { Menu } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -14,27 +12,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-type MenuItem = {
-  label: string;
-  href: string;
-};
+import AppSidebarMenuContent from "@/components/app-sidebar-menu-content";
 
 export default function AppSidebarMenu() {
-  const searchParams = useSearchParams();
-  const plantId = searchParams.get("plantId");
-
-  // plantId付きURLを作るヘルパー
-  const withPlantId = (path: string) => {
-    if (!plantId) return path;
-    return `${path}?plantId=${encodeURIComponent(plantId)}`;
-  };
-
-  const sensorMenus: MenuItem[] = [
-    { label: "日報", href: "/daily-report" },
-    { label: "温度センサー", href: "/temperature-sensor" },
-    { label: "振動センサー", href: "/vibration-sensor" },
-  ];
-
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -48,38 +28,9 @@ export default function AppSidebarMenu() {
           <SheetTitle>メニュー</SheetTitle>
         </SheetHeader>
 
-        <nav className="mt-6 space-y-4">
-
-          {/* センサー関連 */}
-          <ul className="space-y-2">
-            {sensorMenus.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={withPlantId(item.href)}
-                  className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          {/* 分割線 */}
-          <Separator />
-
-          {/* プラント */}
-          <ul className="space-y-2">
-            <li>
-              <Link
-                href="/"
-                className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
-              >
-                プラント一覧
-              </Link>
-            </li>
-          </ul>
-
-        </nav>
+        <Suspense fallback={<div className="mt-6 text-sm text-muted-foreground">読み込み中...</div>}>
+          <AppSidebarMenuContent />
+        </Suspense>
       </SheetContent>
     </Sheet>
   );

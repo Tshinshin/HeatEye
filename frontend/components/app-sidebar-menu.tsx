@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Menu } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -19,6 +20,15 @@ type MenuItem = {
 };
 
 export default function AppSidebarMenu() {
+  const searchParams = useSearchParams();
+  const plantId = searchParams.get("plantId");
+
+  // plantId付きURLを作るヘルパー
+  const withPlantId = (path: string) => {
+    if (!plantId) return path;
+    return `${path}?plantId=${encodeURIComponent(plantId)}`;
+  };
+
   const sensorMenus: MenuItem[] = [
     { label: "日報", href: "/daily-report" },
     { label: "温度センサー", href: "/temperature-sensor" },
@@ -45,7 +55,7 @@ export default function AppSidebarMenu() {
             {sensorMenus.map((item) => (
               <li key={item.href}>
                 <Link
-                  href={item.href}
+                  href={withPlantId(item.href)}
                   className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
                 >
                   {item.label}

@@ -128,7 +128,7 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-8">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold">ダッシュボード</h1>
+        <h1 className="text-2xl font-bold">日報</h1>
         <div className="text-sm text-muted-foreground">
           Plant ID: <span className="font-mono">{plantId || "(none)"}</span>
         </div>

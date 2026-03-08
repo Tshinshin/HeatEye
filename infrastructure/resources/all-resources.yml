@@ -343,3 +343,33 @@ ReadingsTable:
         Value: ${self:custom.stage}
       - Key: Service
         Value: ${self:service}
+
+# Devices Table - 温度計マスタ
+# PK=plant_id, SK=device_id
+# Attributes:
+#   - device_name (S)
+#   - location (S)
+#   - latest_value (N)
+#   - latest_ts (S)
+TemperatureSensorsTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-temperature-sensors
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: plant_id
+        AttributeType: S
+      - AttributeName: device_id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: plant_id
+        KeyType: HASH
+      - AttributeName: device_id
+        KeyType: RANGE
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}

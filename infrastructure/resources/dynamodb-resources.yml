@@ -178,7 +178,7 @@ ReadingsTable:
 #   - location (S)
 #   - latest_value (N)
 #   - latest_ts (S)
-DevicesTable:
+TemperatureSensorsTable:
   Type: AWS::DynamoDB::Table
   Properties:
     TableName: ${self:custom.tableName}-temperature-sensors

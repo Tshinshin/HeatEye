@@ -20,7 +20,7 @@ export default function AppSidebarMenuContent() {
   };
 
   const sensorMenus: MenuItem[] = [
-    { label: "日報", href: "/daily-report" },
+    { label: "日報", href: "/dashboard" },
     { label: "温度センサー", href: "/temperature-sensor" },
     { label: "振動センサー", href: "/vibration-sensor" },
   ];

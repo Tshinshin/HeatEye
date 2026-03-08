@@ -373,3 +373,31 @@ TemperatureSensorsTable:
         Value: ${self:custom.stage}
       - Key: Service
         Value: ${self:service}
+
+# Readings Table - 温度計読み値（計器単位の時系列）
+# PK=device_id, SK=timestamp（ISO 8601 文字列推奨）
+# Attributes:
+#   - value (N)
+#   - image_url (S)
+TemperatureReadingsTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${self:custom.tableName}-temperature-readings
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: device_id
+        AttributeType: S
+      - AttributeName: timestamp
+        AttributeType: S
+    KeySchema:
+      - AttributeName: device_id
+        KeyType: HASH
+      - AttributeName: timestamp
+        KeyType: RANGE
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    Tags:
+      - Key: Environment
+        Value: ${self:custom.stage}
+      - Key: Service
+        Value: ${self:service}

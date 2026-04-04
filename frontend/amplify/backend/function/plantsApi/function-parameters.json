@@ -16,6 +16,26 @@
     {
       "cloudFormationParameterName": "cognitoClientId",
       "environmentVariableName": "COGNITO_CLIENT_ID"
+    },
+    {
+      "cloudFormationParameterName": "imagesBucket",
+      "environmentVariableName": "IMAGES_BUCKET"
+    },
+    {
+      "cloudFormationParameterName": "signedUrlExpiresIn",
+      "environmentVariableName": "SIGNED_URL_EXPIRES_IN"
+    },
+    {
+      "cloudFormationParameterName": "ddbDevicesTable",
+      "environmentVariableName": "DDB_DEVICES_TABLE"
+    },
+    {
+      "cloudFormationParameterName": "ddbReadingsTable",
+      "environmentVariableName": "DDB_READINGS_TABLE"
+    },
+    {
+      "cloudFormationParameterName": "crossAccountRoleArn",
+      "environmentVariableName": "CROSS_ACCOUNT_ROLE_ARN"
     }
   ]
 }

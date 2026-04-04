@@ -25,6 +25,22 @@ git push origin amplify
 npx serverless deploy
 ```
 
+**Lambdaの関数を改修した際には、以下の手順でデプロイします。**
+
+* ルート(HeatEye)下、frontendに移動
+```
+amplify push
+```
+
+**Lambdaの環境変数の修正**
+
+* ルート(HeatEye)下、frontendに移動
+```
+amplify update function
+```
+
+
+
 # システム構成
 
 HeatEye は以下の構成で動作します。

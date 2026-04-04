@@ -6,9 +6,45 @@ const {
   QueryCommand,
   BatchGetCommand,
 } = require("@aws-sdk/lib-dynamodb");
+const { S3Client, GetObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { STSClient, AssumeRoleCommand } = require("@aws-sdk/client-sts");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
 const REGION = process.env.AWS_REGION || process.env.REGION || "ap-northeast-1";
+const IMAGES_BUCKET = process.env.IMAGES_BUCKET;
+const SIGNED_URL_EXPIRES_IN = Number(process.env.SIGNED_URL_EXPIRES_IN || 3600);
+const CROSS_ACCOUNT_ROLE_ARN = process.env.CROSS_ACCOUNT_ROLE_ARN;
+
+const sts = new STSClient({ region: REGION });
+
+async function createCrossAccountS3Client() {
+  if (!CROSS_ACCOUNT_ROLE_ARN) {
+    throw new Error("CROSS_ACCOUNT_ROLE_ARN is not set");
+  }
+
+  const assumed = await sts.send(
+    new AssumeRoleCommand({
+      RoleArn: CROSS_ACCOUNT_ROLE_ARN,
+      RoleSessionName: "HeatEyePresignSession",
+      DurationSeconds: 3600,
+    })
+  );
+
+  const c = assumed.Credentials;
+  if (!c) {
+    throw new Error("AssumeRole failed: no credentials returned");
+  }
+
+  return new S3Client({
+    region: REGION,
+    credentials: {
+      accessKeyId: c.AccessKeyId,
+      secretAccessKey: c.SecretAccessKey,
+      sessionToken: c.SessionToken,
+    },
+  });
+}
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
   marshallOptions: { removeUndefinedValues: true },
@@ -157,6 +193,27 @@ async function loadReadingsByDevice({ readingsTable, deviceId }) {
   return items;
 }
 
+async function createPresignedImageUrl(imageValue) {
+  if (!imageValue) return null;
+  if (!IMAGES_BUCKET) {
+    throw new Error("IMAGES_BUCKET is not set");
+  }
+
+  const key = String(imageValue).trim().replace(/^\/+/, "");
+
+  // 👇 ここが重要（変更点）
+  const s3 = await createCrossAccountS3Client();
+
+  const command = new GetObjectCommand({
+    Bucket: IMAGES_BUCKET,
+    Key: key,
+  });
+
+  return await getSignedUrl(s3, command, {
+    expiresIn: SIGNED_URL_EXPIRES_IN,
+  });
+}
+
 exports.handler = async (event) => {
   const method = event?.httpMethod || event?.requestContext?.http?.method || "";
   if (String(method).toUpperCase() === "OPTIONS") {
@@ -246,7 +303,18 @@ exports.handler = async (event) => {
         deviceId,
       });
 
-      return json(200, { items });
+      console.log("raw items =", JSON.stringify(items, null, 2));
+
+      const itemsWithSignedUrl = await Promise.all(
+        items.map(async (item) => ({
+          ...item,
+          image: item.image ? await createPresignedImageUrl(item.image) : null,
+        }))
+      );
+
+      console.log("itemsWithSignedUrl =", JSON.stringify(itemsWithSignedUrl, null, 2));
+
+      return json(200, { items: itemsWithSignedUrl });
     }
 
     // --- 既存：plants一覧（そのまま） ---
@@ -298,6 +366,7 @@ exports.handler = async (event) => {
 
     return json(200, { plants: ordered });
   } catch (e) {
+    console.error("handler error full =", e);
     const statusCode = e?.statusCode || 500;
     const detail =
       e && (e.stack || e.message) ? e.stack || e.message : String(e);

@@ -46,7 +46,31 @@
         }
       ]
     },
+    "AMPLIFY_function_plantsApi_crossAccountRoleArn": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_ddbDevicesTable": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
     "AMPLIFY_function_plantsApi_ddbPlantsTable": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_ddbReadingsTable": {
       "usedBy": [
         {
           "category": "function",
@@ -70,7 +94,23 @@
         }
       ]
     },
+    "AMPLIFY_function_plantsApi_imagesBucket": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
     "AMPLIFY_function_plantsApi_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "plantsApi"
+        }
+      ]
+    },
+    "AMPLIFY_function_plantsApi_signedUrlExpiresIn": {
       "usedBy": [
         {
           "category": "function",

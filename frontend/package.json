@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.986.0",
+    "@aws-sdk/client-sts": "^3.1020.0",
     "@aws-sdk/lib-dynamodb": "^3.986.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-label": "^2.1.8",

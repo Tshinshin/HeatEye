@@ -13,5 +13,14 @@
       "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>",
       "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>/index/*"
     ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "sts:AssumeRole"
+    ],
+    "Resource": [
+      "arn:aws:iam::471246437965:role/HeatEyePresignReadRole"
+    ]
   }
 ]

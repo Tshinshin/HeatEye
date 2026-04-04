@@ -27,6 +27,21 @@
     },
     "cognitoClientId": {
       "Type": "String"
+    },
+    "imagesBucket": {
+      "Type": "String"
+    },
+    "signedUrlExpiresIn": {
+      "Type": "String"
+    },
+    "ddbDevicesTable": {
+      "Type": "String"
+    },
+    "ddbReadingsTable": {
+      "Type": "String"
+    },
+    "crossAccountRoleArn": {
+      "Type": "String"
     }
   },
   "Conditions": {
@@ -93,6 +108,21 @@
             },
             "COGNITO_CLIENT_ID": {
               "Ref": "cognitoClientId"
+            },
+            "IMAGES_BUCKET": {
+              "Ref": "imagesBucket"
+            },
+            "SIGNED_URL_EXPIRES_IN": {
+              "Ref": "signedUrlExpiresIn"
+            },
+            "DDB_DEVICES_TABLE": {
+              "Ref": "ddbDevicesTable"
+            },
+            "DDB_READINGS_TABLE": {
+              "Ref": "ddbReadingsTable"
+            },
+            "CROSS_ACCOUNT_ROLE_ARN": {
+              "Ref": "crossAccountRoleArn"
             }
           }
         },
@@ -291,6 +321,15 @@
                 "arn:aws:dynamodb:*:*:table/<<<USER_PLANT_TABLE_NAME>>>/index/*",
                 "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>",
                 "arn:aws:dynamodb:*:*:table/<<<PLANTS_TABLE_NAME>>>/index/*"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "sts:AssumeRole"
+              ],
+              "Resource": [
+                "arn:aws:iam::471246437965:role/HeatEyePresignReadRole"
               ]
             }
           ]

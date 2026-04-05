@@ -23,6 +23,7 @@ type DeviceFromApi = {
 }
 
 type DeviceView = {
+  plantId: string
   id: string
   name: string
   latestval: number | string | null
@@ -103,6 +104,7 @@ export default function DashboardPage() {
         const items = data.items ?? []
 
         const view: DeviceView[] = items.map((d) => ({
+          plantId: d.plant_id,
           id: d.device_id,
           name: d.device_name,
           latestval: d.latest_value,
@@ -157,12 +159,14 @@ export default function DashboardPage() {
 
           <TableBody>
             {devices.map((d) => (
-              <TableRow key={d.id}>
+              <TableRow key={`${d.plantId}#${d.id}`}>
                 <TableCell>{d.name}</TableCell>
                 <TableCell>{d.latestval ?? "-"}</TableCell>
                 <TableCell>{d.location}</TableCell>
                 <TableCell>
-                  <Link href={`/dashboard/reading/${encodeURIComponent(d.id)}`}>
+                  <Link
+                    href={`/dashboard/reading/${encodeURIComponent(d.plantId)}/${encodeURIComponent(d.id)}`}
+                  >
                     <Button variant="outline" size="sm">
                       読み値履歴
                     </Button>

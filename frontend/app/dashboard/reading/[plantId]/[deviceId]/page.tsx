@@ -15,7 +15,8 @@ import {
 import { getCurrentUser, fetchAuthSession } from "aws-amplify/auth"
 
 type ReadingFromApi = {
-  device_id: string
+  plant_device_id?: string
+  device_id?: string
   timestamp: string
   image: string | null
   reading: number | string | null
@@ -28,7 +29,8 @@ type RowView = {
 }
 
 export default function ReadingPage() {
-  const params = useParams<{ deviceId: string }>()
+  const params = useParams<{ plantId: string; deviceId: string }>()
+  const plantId = params.plantId
   const deviceId = params.deviceId
 
   const [rows, setRows] = useState<RowView[]>([])
@@ -41,10 +43,15 @@ export default function ReadingPage() {
 
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
+  const plantDeviceId = useMemo(() => {
+    if (!plantId || !deviceId) return ""
+    return `${plantId}#${deviceId}`
+  }, [plantId, deviceId])
+
   const endpoint = useMemo(() => {
-    if (!base || !deviceId) return ""
-    return `${base}/readings?deviceId=${encodeURIComponent(deviceId)}`
-  }, [base, deviceId])
+    if (!base || !plantDeviceId) return ""
+    return `${base}/readings?plantDeviceId=${encodeURIComponent(plantDeviceId)}`
+  }, [base, plantDeviceId])
 
   function formatNowForFileName(date: Date = new Date()) {
     const yyyy = date.getFullYear().toString()
@@ -63,7 +70,8 @@ export default function ReadingPage() {
   }
 
   function handleDownloadCsv() {
-    if (!deviceId) return
+    if (!plantId || !deviceId) return
+
     if (rows.length === 0) {
       alert("ダウンロード対象のデータがありません")
       return
@@ -82,7 +90,7 @@ export default function ReadingPage() {
     const url = URL.createObjectURL(blob)
 
     const timestamp = formatNowForFileName()
-    const fileName = `${deviceId}_${timestamp}.csv`
+    const fileName = `${plantId}_${deviceId}_${timestamp}.csv`
 
     const a = document.createElement("a")
     a.href = url
@@ -99,7 +107,7 @@ export default function ReadingPage() {
       setError("")
       setRows([])
 
-      if (!deviceId) return
+      if (!plantId || !deviceId || !plantDeviceId) return
 
       try {
         setLoading(true)
@@ -111,6 +119,7 @@ export default function ReadingPage() {
         if (!idToken) throw new Error("No idToken. Are you logged in?")
 
         if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+        if (!endpoint) throw new Error("API endpoint is not available")
 
         const res = await fetch(endpoint, {
           headers: { Authorization: `Bearer ${idToken}` },
@@ -162,12 +171,14 @@ export default function ReadingPage() {
         setLoading(false)
       }
     })()
-  }, [deviceId, base, endpoint])
+  }, [plantId, deviceId, plantDeviceId, base, endpoint])
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">読み値一覧（{deviceId}）</h1>
+        <h1 className="text-2xl font-bold">
+          読み値一覧（{plantId} / {deviceId}）
+        </h1>
 
         <div className="flex gap-2">
           <Button
@@ -178,7 +189,7 @@ export default function ReadingPage() {
             CSVダウンロード
           </Button>
 
-          <Link href="/dashboard">
+          <Link href={`/dashboard?plantId=${encodeURIComponent(plantId)}`}>
             <Button variant="outline">戻る</Button>
           </Link>
         </div>

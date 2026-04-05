@@ -6,7 +6,7 @@ const {
   QueryCommand,
   BatchGetCommand,
 } = require("@aws-sdk/lib-dynamodb");
-const { S3Client, GetObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { STSClient, AssumeRoleCommand } = require("@aws-sdk/client-sts");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
@@ -111,14 +111,8 @@ function getVerifier() {
   return verifier;
 }
 
-// 追加：path判定を吸収
 function getPath(event) {
-  return (
-    event?.rawPath ||
-    event?.requestContext?.http?.path ||
-    event?.path ||
-    ""
-  );
+  return event?.rawPath || event?.requestContext?.http?.path || event?.path || "";
 }
 
 function getQueryParam(event, key) {
@@ -126,7 +120,6 @@ function getQueryParam(event, key) {
   return q[key];
 }
 
-// 追加：ユーザーがそのplantにアクセスできるか確認（user-plantをQueryして存在チェック）
 async function assertUserCanAccessPlant({ userId, plantId, userPlantTable }) {
   const q = await ddb.send(
     new QueryCommand({
@@ -137,60 +130,46 @@ async function assertUserCanAccessPlant({ userId, plantId, userPlantTable }) {
     })
   );
 
-  const plantIds = (q.Items || [])
-    .map((x) => x?.plant_id)
-    .filter(Boolean);
+  const plantIds = (q.Items || []).map((x) => x?.plant_id).filter(Boolean);
 
   if (!plantIds.includes(plantId)) {
-    // 403の方が正確（認証は通ってるが権限がない）
     const err = new Error("Forbidden");
     err.statusCode = 403;
     throw err;
   }
 }
 
-// 追加：devices取得
 async function loadDevicesByPlant({ devicesTable, plantId }) {
   const r = await ddb.send(
     new QueryCommand({
       TableName: devicesTable,
       KeyConditionExpression: "plant_id = :p",
       ExpressionAttributeValues: { ":p": plantId },
-      // ProjectionExpression を書かない（全属性返す）
     })
   );
 
   return r.Items || [];
 }
 
-// 追加：readings取得
-async function loadReadingsByDevice({ readingsTable, deviceId }) {
+async function loadReadingsByPlantDeviceId({ readingsTable, plantDeviceId }) {
   const r = await ddb.send(
     new QueryCommand({
       TableName: readingsTable,
-      KeyConditionExpression: "device_id = :d",
-      ExpressionAttributeValues: { ":d": deviceId },
+      KeyConditionExpression: "plant_device_id = :pd",
+      ExpressionAttributeValues: { ":pd": plantDeviceId },
 
-      // timestamp は念のため別名（予約語扱い回避）
-      ProjectionExpression: "device_id, #ts, reading, image",
+      // timestamp は予約語回避で別名
+      ProjectionExpression: "plant_device_id, device_id, #ts, reading, image",
       ExpressionAttributeNames: {
         "#ts": "timestamp",
       },
+
+      // sort key = timestamp のため降順取得
+      ScanIndexForward: false,
     })
   );
 
-  const items = r.Items || [];
-
-  // timestamp降順（SortKeyでない可能性があるのでアプリ側でソート）
-  items.sort((a, b) => {
-    const ta = String(a.timestamp ?? "");
-    const tb = String(b.timestamp ?? "");
-    if (ta < tb) return 1;
-    if (ta > tb) return -1;
-    return 0;
-  });
-
-  return items;
+  return r.Items || [];
 }
 
 async function createPresignedImageUrl(imageValue) {
@@ -201,7 +180,6 @@ async function createPresignedImageUrl(imageValue) {
 
   const key = String(imageValue).trim().replace(/^\/+/, "");
 
-  // 👇 ここが重要（変更点）
   const s3 = await createCrossAccountS3Client();
 
   const command = new GetObjectCommand({
@@ -227,7 +205,7 @@ exports.handler = async (event) => {
   try {
     const USER_PLANT_TABLE = process.env.DDB_USER_PLANT_TABLE;
     const PLANTS_TABLE = process.env.DDB_PLANTS_TABLE;
-    const DEVICES_TABLE = process.env.DDB_DEVICES_TABLE; // ★追加
+    const DEVICES_TABLE = process.env.DDB_DEVICES_TABLE;
 
     if (!USER_PLANT_TABLE || !PLANTS_TABLE) {
       return json(500, {
@@ -236,6 +214,7 @@ exports.handler = async (event) => {
           DDB_USER_PLANT_TABLE: !!process.env.DDB_USER_PLANT_TABLE,
           DDB_PLANTS_TABLE: !!process.env.DDB_PLANTS_TABLE,
           DDB_DEVICES_TABLE: !!process.env.DDB_DEVICES_TABLE,
+          DDB_READINGS_TABLE: !!process.env.DDB_READINGS_TABLE,
           AWS_REGION: process.env.AWS_REGION ?? null,
           REGION: process.env.REGION ?? null,
         },
@@ -247,14 +226,12 @@ exports.handler = async (event) => {
     if (!m) return json(401, { message: "Unauthorized" });
     const token = m[1];
 
-    // JWT検証
     const payload = await getVerifier().verify(token);
     const userId = payload.sub;
 
-    // ルーティング判定
     const path = getPath(event);
 
-    // ★★★ 追加：/devices ルート ★★★
+    // /devices
     if (path.endsWith("/devices")) {
       if (!DEVICES_TABLE) {
         return json(500, { message: "DDB_DEVICES_TABLE is not set" });
@@ -267,40 +244,59 @@ exports.handler = async (event) => {
         return json(400, { message: "plantId is required" });
       }
 
-      // 認可：そのユーザーがそのplantにアクセスできるか
       await assertUserCanAccessPlant({
         userId,
         plantId,
         userPlantTable: USER_PLANT_TABLE,
       });
 
-      // devices取得
       const devices = await loadDevicesByPlant({
         devicesTable: DEVICES_TABLE,
         plantId,
       });
 
-      // フロントが使いやすい形で返す（items配列）
       return json(200, { items: devices });
     }
 
-    // ★★★ 追加：/readings ルート ★★★
+    // /readings
     if (path.endsWith("/readings")) {
       const READINGS_TABLE = process.env.DDB_READINGS_TABLE;
       if (!READINGS_TABLE) {
         return json(500, { message: "DDB_READINGS_TABLE is not set" });
       }
 
-      const deviceId =
-        getQueryParam(event, "deviceId") || getQueryParam(event, "device_id");
+      const plantDeviceId =
+        getQueryParam(event, "plantDeviceId") ||
+        getQueryParam(event, "plant_device_id");
 
-      if (!deviceId) {
-        return json(400, { message: "deviceId is required" });
+      if (!plantDeviceId) {
+        return json(400, { message: "plantDeviceId is required" });
       }
 
-      const items = await loadReadingsByDevice({
+      // plantId を plantDeviceId の先頭から取り出して認可に使う
+      const sharpIndex = String(plantDeviceId).indexOf("#");
+      if (sharpIndex <= 0) {
+        return json(400, {
+          message: "plantDeviceId must be in the format 'plantId#deviceId'",
+        });
+      }
+
+      const plantId = String(plantDeviceId).slice(0, sharpIndex);
+      if (!plantId) {
+        return json(400, {
+          message: "plantId could not be parsed from plantDeviceId",
+        });
+      }
+
+      await assertUserCanAccessPlant({
+        userId,
+        plantId,
+        userPlantTable: USER_PLANT_TABLE,
+      });
+
+      const items = await loadReadingsByPlantDeviceId({
         readingsTable: READINGS_TABLE,
-        deviceId,
+        plantDeviceId,
       });
 
       console.log("raw items =", JSON.stringify(items, null, 2));
@@ -312,12 +308,15 @@ exports.handler = async (event) => {
         }))
       );
 
-      console.log("itemsWithSignedUrl =", JSON.stringify(itemsWithSignedUrl, null, 2));
+      console.log(
+        "itemsWithSignedUrl =",
+        JSON.stringify(itemsWithSignedUrl, null, 2)
+      );
 
       return json(200, { items: itemsWithSignedUrl });
     }
 
-    // --- 既存：plants一覧（そのまま） ---
+    // plants 一覧
     const q = await ddb.send(
       new QueryCommand({
         TableName: USER_PLANT_TABLE,

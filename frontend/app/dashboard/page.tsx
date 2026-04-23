@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -19,17 +18,17 @@ type DeviceFromApi = {
   device_id: string
   device_name: string
   latest_value: number | string | null
-  latest_timestamp: string | null
-  latest_image: string | null
+  latest_timestamp?: string | null
+  latest_image?: string | null
 }
 
 type DeviceView = {
   plantId: string
   id: string
   name: string
-  latestval: number | string | null
+  latestValue: number | string | null
   latestTimestamp: string
-  latestImage: string
+  imageUrl: string | null
 }
 
 export default function DashboardPage() {
@@ -38,10 +37,11 @@ export default function DashboardPage() {
   const [error, setError] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
 
-  // API Base URL（Amplify Consoleの環境変数で設定する）
+  const [open, setOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
-  // クエリ取得（useSearchParamsは使わない）
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search)
     setPlantId(sp.get("plantId") ?? "")
@@ -62,25 +62,20 @@ export default function DashboardPage() {
       try {
         setLoading(true)
 
-        // 1) ログイン済みチェック
-        const user = await getCurrentUser()
-        console.log("currentUser", user)
+        await getCurrentUser()
 
-        // 2) idToken取得
         const session = await fetchAuthSession()
         const idToken = session.tokens?.idToken?.toString()
         if (!idToken) throw new Error("No idToken. Are you logged in?")
 
-        // 3) API Base URL確認
         if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+        if (!endpoint) throw new Error("API endpoint is not available")
 
-        // 4) API Gatewayへアクセス
         const res = await fetch(endpoint, {
           headers: { Authorization: `Bearer ${idToken}` },
           cache: "no-store",
         })
 
-        // 5) エラー処理（Homeと同じ流儀）
         if (!res.ok) {
           const text = await res.text()
 
@@ -101,7 +96,6 @@ export default function DashboardPage() {
           throw new Error(detail ? `${message} / ${detail}` : message)
         }
 
-        // 6) 成功
         const data = (await res.json()) as { items: DeviceFromApi[] }
         const items = data.items ?? []
 
@@ -109,9 +103,9 @@ export default function DashboardPage() {
           plantId: d.plant_id,
           id: d.device_id,
           name: d.device_name,
-          latestval: d.latest_value,
+          latestValue: d.latest_value,
           latestTimestamp: d.latest_timestamp ?? "",
-          latestImage: d.latest_image ?? "",
+          imageUrl: d.latest_image ?? null,
         }))
 
         setDevices(view)
@@ -156,7 +150,7 @@ export default function DashboardPage() {
               <TableHead>計器名</TableHead>
               <TableHead>報告値</TableHead>
               <TableHead>報告日時</TableHead>
-              <TableHead>画像</TableHead>
+              <TableHead className="text-center">画像</TableHead>
               <TableHead>詳細</TableHead>
             </TableRow>
           </TableHeader>
@@ -165,19 +159,32 @@ export default function DashboardPage() {
             {devices.map((d) => (
               <TableRow key={`${d.plantId}#${d.id}`}>
                 <TableCell>{d.name}</TableCell>
-                <TableCell>{d.latestval ?? "-"}</TableCell>
+                <TableCell>{d.latestValue ?? "-"}</TableCell>
                 <TableCell>{d.latestTimestamp || "-"}</TableCell>
-                <TableCell>
-                  {d.latestImage ? (
-                    <img
-                      src={d.latestImage}
-                      alt={`${d.name} の最新画像`}
-                      className="h-16 w-16 object-cover rounded border"
-                    />
+
+                <TableCell className="text-center">
+                  {d.imageUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImage(d.imageUrl)
+                        setOpen(true)
+                      }}
+                      className="inline-block"
+                      aria-label="画像を拡大表示"
+                    >
+                      <img
+                        src={d.imageUrl}
+                        alt={`${d.name} の画像`}
+                        className="inline-block h-12 w-12 rounded object-cover border"
+                        loading="lazy"
+                      />
+                    </button>
                   ) : (
-                    "-"
+                    <span className="text-sm text-muted-foreground">-</span>
                   )}
                 </TableCell>
+
                 <TableCell>
                   <Link
                     href={`/dashboard/reading/${encodeURIComponent(d.plantId)}/${encodeURIComponent(d.id)}`}
@@ -201,13 +208,37 @@ export default function DashboardPage() {
             {!plantId && (
               <TableRow>
                 <TableCell colSpan={5} className="text-sm text-muted-foreground">
-                  plantId が指定されていません（URLの ?plantId=... を確認してください）
+                  plantId が指定されていません
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </section>
+
+      {open && selectedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="max-h-[90vh] max-w-[90vw] bg-white rounded shadow p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-end mb-2">
+              <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+                閉じる
+              </Button>
+            </div>
+
+            <img
+              src={selectedImage}
+              alt="device large"
+              className="max-h-[80vh] max-w-[88vw] object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,3 @@
-// amplify/backend/function/plantsApi/src/index.js
-
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const {
   DynamoDBDocumentClient,
@@ -158,13 +156,11 @@ async function loadReadingsByPlantDeviceId({ readingsTable, plantDeviceId }) {
       KeyConditionExpression: "plant_device_id = :pd",
       ExpressionAttributeValues: { ":pd": plantDeviceId },
 
-      // timestamp は予約語回避で別名
       ProjectionExpression: "plant_device_id, device_id, #ts, reading, image",
       ExpressionAttributeNames: {
         "#ts": "timestamp",
       },
 
-      // sort key = timestamp のため降順取得
       ScanIndexForward: false,
     })
   );
@@ -255,7 +251,23 @@ exports.handler = async (event) => {
         plantId,
       });
 
-      return json(200, { items: devices });
+      console.log("raw devices =", JSON.stringify(devices, null, 2));
+
+      const devicesWithSignedUrl = await Promise.all(
+        devices.map(async (device) => ({
+          ...device,
+          latest_image: device.latest_image
+            ? await createPresignedImageUrl(device.latest_image)
+            : null,
+        }))
+      );
+
+      console.log(
+        "devicesWithSignedUrl =",
+        JSON.stringify(devicesWithSignedUrl, null, 2)
+      );
+
+      return json(200, { items: devicesWithSignedUrl });
     }
 
     // /readings
@@ -273,7 +285,6 @@ exports.handler = async (event) => {
         return json(400, { message: "plantDeviceId is required" });
       }
 
-      // plantId を plantDeviceId の先頭から取り出して認可に使う
       const sharpIndex = String(plantDeviceId).indexOf("#");
       if (sharpIndex <= 0) {
         return json(400, {

@@ -19,7 +19,8 @@ type DeviceFromApi = {
   device_id: string
   device_name: string
   latest_value: number | string | null
-  location: string | null
+  latest_timestamp: string | null
+  latest_image: string | null
 }
 
 type DeviceView = {
@@ -27,7 +28,8 @@ type DeviceView = {
   id: string
   name: string
   latestval: number | string | null
-  location: string
+  latestTimestamp: string
+  latestImage: string
 }
 
 export default function DashboardPage() {
@@ -108,7 +110,8 @@ export default function DashboardPage() {
           id: d.device_id,
           name: d.device_name,
           latestval: d.latest_value,
-          location: d.location ?? "",
+          latestTimestamp: d.latest_timestamp ?? "",
+          latestImage: d.latest_image ?? "",
         }))
 
         setDevices(view)
@@ -151,8 +154,9 @@ export default function DashboardPage() {
           <TableHeader>
             <TableRow>
               <TableHead>計器名</TableHead>
-              <TableHead>最新値</TableHead>
-              <TableHead>設置場所</TableHead>
+              <TableHead>報告値</TableHead>
+              <TableHead>報告日時</TableHead>
+              <TableHead>画像</TableHead>
               <TableHead>詳細</TableHead>
             </TableRow>
           </TableHeader>
@@ -162,7 +166,18 @@ export default function DashboardPage() {
               <TableRow key={`${d.plantId}#${d.id}`}>
                 <TableCell>{d.name}</TableCell>
                 <TableCell>{d.latestval ?? "-"}</TableCell>
-                <TableCell>{d.location}</TableCell>
+                <TableCell>{d.latestTimestamp || "-"}</TableCell>
+                <TableCell>
+                  {d.latestImage ? (
+                    <img
+                      src={d.latestImage}
+                      alt={`${d.name} の最新画像`}
+                      className="h-16 w-16 object-cover rounded border"
+                    />
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
                 <TableCell>
                   <Link
                     href={`/dashboard/reading/${encodeURIComponent(d.plantId)}/${encodeURIComponent(d.id)}`}
@@ -177,7 +192,7 @@ export default function DashboardPage() {
 
             {!loading && !error && devices.length === 0 && plantId && (
               <TableRow>
-                <TableCell colSpan={4} className="text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="text-sm text-muted-foreground">
                   該当データがありません
                 </TableCell>
               </TableRow>
@@ -185,7 +200,7 @@ export default function DashboardPage() {
 
             {!plantId && (
               <TableRow>
-                <TableCell colSpan={4} className="text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="text-sm text-muted-foreground">
                   plantId が指定されていません（URLの ?plantId=... を確認してください）
                 </TableCell>
               </TableRow>

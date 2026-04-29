@@ -21,7 +21,7 @@ export default function AppSidebarMenuContent() {
 
   const sensorMenus: MenuItem[] = [
     { label: "日報", href: "/dashboard" },
-    { label: "振動センサー", href: "https://oes-sensors.s3.ap-northeast-1.amazonaws.com/reports/vib/dashboard.html" },
+    { label: "振動センサー", href: "/report/vibration" },
     { label: "電流センサー", href: "https://oessmart.s3.ap-northeast-1.amazonaws.com/motor-plot/reports/dashboard.html" },
     { label: "温度センサー", href: "/temperature-sensor" },
   ];

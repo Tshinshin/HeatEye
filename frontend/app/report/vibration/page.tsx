@@ -1,9 +1,10 @@
-export default function Page() {
+export default function VibrationReportPage() {
   return (
-    <div className="w-full h-[calc(100vh-64px)]">
+    <div className="h-[calc(100vh-57px)] w-full overflow-hidden">
       <iframe
+        title="振動センサー"
         src="https://oes-sensors.s3.ap-northeast-1.amazonaws.com/reports/vib/dashboard.html"
-        className="w-full h-full border-0"
+        className="h-full w-full border-0"
       />
     </div>
   );

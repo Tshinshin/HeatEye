@@ -4,16 +4,45 @@ import { useEffect, useState } from "react";
 
 export default function CurrentReportPage() {
   const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadUrl = async () => {
-      const res = await fetch("/api/report-url/current");
-      const data = await res.json();
-      setUrl(data.url);
-    };
+    async function loadUrl() {
+      try {
+        const res = await fetch("/api/report-url/current", {
+          cache: "no-store",
+        });
+
+        const text = await res.text();
+
+        if (!res.ok) {
+          throw new Error(`API error ${res.status}: ${text}`);
+        }
+
+        const data = JSON.parse(text);
+
+        if (!data.url) {
+          throw new Error("API response does not contain url");
+        }
+
+        setUrl(data.url);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    }
 
     loadUrl();
   }, []);
+
+  if (error) {
+    return (
+      <div className="p-4 text-sm text-red-600 whitespace-pre-wrap">
+        電流センサー画面の読み込みに失敗しました。
+        {"\n\n"}
+        {error}
+      </div>
+    );
+  }
 
   if (!url) {
     return <div className="p-4">読み込み中...</div>;

@@ -23,7 +23,7 @@ export default function AppSidebarMenuContent() {
     { label: "日報", href: "/dashboard" },
     { label: "振動センサー", href: "/report/vibration" },
     { label: "電流センサー", href: "/report/current" },
-    { label: "温度センサー", href: "/temperature-sensor" },
+    { label: "INV停止リスク", href: "/report/inv-breakdown-risk" },
   ];
 
   return (

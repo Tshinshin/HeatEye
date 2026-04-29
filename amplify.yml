@@ -8,6 +8,9 @@ applications:
             - npm ci
         build:
           commands:
+            - printf "HEATEYE_AWS_ACCESS_KEY_ID=%s\n" "$HEATEYE_AWS_ACCESS_KEY_ID" >> .env.production
+            - printf "HEATEYE_AWS_SECRET_ACCESS_KEY=%s\n" "$HEATEYE_AWS_SECRET_ACCESS_KEY" >> .env.production
+            - printf "HEATEYE_AWS_REGION=%s\n" "$HEATEYE_AWS_REGION" >> .env.production
             - npm run build
       artifacts:
         baseDirectory: .amplify-hosting

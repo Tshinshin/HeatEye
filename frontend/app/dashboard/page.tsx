@@ -134,6 +134,9 @@ export default function DashboardPage() {
           imageUrl: d.latest_image ?? null,
         }))
 
+        // 計器名で昇順ソート
+        view.sort((a, b) => a.name.localeCompare(b.name))
+
         setDevices(view)
       } catch (e: unknown) {
         console.error("Dashboard load error:", e)

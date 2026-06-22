@@ -24,6 +24,7 @@ export default function AppSidebarMenuContent() {
     { label: "振動センサー", href: "/report/vibration" },
     { label: "電流センサー", href: "/report/current" },
     { label: "INV停止リスク", href: "/report/inv-breakdown-risk" },
+    { label: "INVトレンド(30日)", href: "/report/inv-trend" },
   ];
 
   return (
@@ -50,6 +51,14 @@ export default function AppSidebarMenuContent() {
             className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
           >
             プラント一覧
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/contact"
+            className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            お問い合わせ
           </Link>
         </li>
       </ul>

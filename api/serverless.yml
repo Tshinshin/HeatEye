@@ -15,6 +15,7 @@ provider:
     COGNITO_USER_POOL_ID: ${param:cognitoUserPoolId}
     COGNITO_REGION: ${self:provider.region}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    SES_SENDER_EMAIL: ${param:sesSenderEmail, 'noreply@heateye.jp'}
 
 custom:
   stage: ${opt:stage, self:provider.stage}

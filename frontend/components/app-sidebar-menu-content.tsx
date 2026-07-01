@@ -22,6 +22,7 @@ export default function AppSidebarMenuContent() {
   const sensorMenus: MenuItem[] = [
     { label: "日報", href: "/dashboard" },
     { label: "振動センサー", href: "/report/vibration" },
+    { label: "マイク音圧", href: "/report/mic" },
     { label: "電流センサー", href: "/report/current" },
     { label: "INV停止リスク", href: "/report/inv-breakdown-risk" },
     { label: "INVトレンド(30日)", href: "/report/inv-trend" },

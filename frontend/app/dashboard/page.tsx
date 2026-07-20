@@ -59,6 +59,7 @@ function formatTimestamp(value: string) {
 
 export default function DashboardPage() {
   const [plantId, setPlantId] = useState<string>("")
+  const [plantName, setPlantName] = useState<string>("")
   const [devices, setDevices] = useState<DeviceView[]>([])
   const [error, setError] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
@@ -70,8 +71,33 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search)
-    setPlantId(sp.get("plantId") ?? "")
-  }, [])
+    const pid = sp.get("plantId") ?? ""
+    if (pid) {
+      setPlantId(pid)
+      return
+    }
+    // plantId 未指定なら API から第1プラントを自動取得
+    ;(async () => {
+      try {
+        await getCurrentUser()
+        const session = await fetchAuthSession()
+        const idToken = session.tokens?.idToken?.toString()
+        if (!idToken || !base) return
+        const res = await fetch(`${base}/plants`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+          cache: "no-store",
+        })
+        if (!res.ok) return
+        const data = (await res.json()) as { plants: { plant_id: string; plant_name: string }[] }
+        if (data.plants?.length > 0) {
+          setPlantId(data.plants[0].plant_id)
+          setPlantName(data.plants[0].plant_name)
+        }
+      } catch (e) {
+        console.error("Auto plant fetch error:", e)
+      }
+    })()
+  }, [base])
 
   const endpoint = useMemo(() => {
     if (!base || !plantId) return ""
@@ -158,7 +184,10 @@ export default function DashboardPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold">日報</h1>
         <div className="text-sm text-muted-foreground">
-          Plant ID: <span className="font-mono">{plantId || "(none)"}</span>
+          {plantName
+            ? <span className="font-semibold text-foreground">{plantName}</span>
+            : <span className="font-mono">{plantId || "読み込み中..."}</span>
+          }
         </div>
       </div>
 
@@ -226,18 +255,10 @@ export default function DashboardPage() {
               </TableRow>
             ))}
 
-            {!loading && !error && devices.length === 0 && plantId && (
+            {!loading && !error && devices.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-sm text-muted-foreground">
-                  該当データがありません
-                </TableCell>
-              </TableRow>
-            )}
-
-            {!plantId && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-sm text-muted-foreground">
-                  plantId が指定されていません
+                  {plantId ? "該当データがありません" : "読み込み中..."}
                 </TableCell>
               </TableRow>
             )}

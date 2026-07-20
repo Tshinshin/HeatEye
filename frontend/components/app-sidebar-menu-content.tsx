@@ -24,6 +24,7 @@ export default function AppSidebarMenuContent() {
     { label: "振動センサー", href: "/report/vibration" },
     { label: "マイク音圧", href: "/report/mic" },
     { label: "電流センサー", href: "/report/current" },
+    { label: "振動×電流 相関", href: "/report/vib-current" },
     { label: "INV停止リスク", href: "/report/inv-breakdown-risk" },
     { label: "INVトレンド(30日)", href: "/report/inv-trend" },
   ];
